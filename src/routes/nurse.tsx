@@ -179,10 +179,17 @@ function NursePage() {
           }
         });
         
-        setDoctorsList(dynamicDocs);
+        const finalDocs = dynamicDocs.length > 0 ? dynamicDocs : [
+          { id: "doctor1", name: "Dr. Kadambari Jagtap" },
+          { id: "doctor2", name: "Dr. Omprasad Jagtap" }
+        ];
+        setDoctorsList(finalDocs);
       } catch (err) {
         console.error("Error fetching doctors", err);
-        setDoctorsList([]);
+        setDoctorsList([
+          { id: "doctor1", name: "Dr. Kadambari Jagtap" },
+          { id: "doctor2", name: "Dr. Omprasad Jagtap" }
+        ]);
       }
     };
     fetchDoctors();
@@ -276,7 +283,11 @@ function NursePage() {
     const docPick = doctorPick[c.id] ?? c.assigned_doctor;
     if (!docPick) return toast.error("Pick a doctor first");
     
-    const docObj = doctorsList.find(d => d.id === docPick);
+    const allDocs = (doctorsList && doctorsList.length > 0) ? doctorsList : [
+      { id: "doctor1", name: "Dr. Kadambari Jagtap" },
+      { id: "doctor2", name: "Dr. Omprasad Jagtap" }
+    ];
+    const docObj = allDocs.find(d => d.id === docPick);
     const assignedDocName = docObj ? docObj.name : (doctorName[docPick as "doctor1" | "doctor2"] || "Doctor");
 
     try {
@@ -1733,6 +1744,61 @@ function PatientCaseCard({ c, doctorPick, setDoctorPick, sendToDoctor, onDelete,
           </div>
         </div>
 
+        {/* Doctor Assignment / Pick Doctor Section - directly visible on card */}
+        <div className="flex flex-col sm:flex-row items-center gap-2 pt-0.5" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full sm:flex-1">
+            <Select
+              value={doctorPick[c.id] || c.assigned_doctor || ""}
+              onValueChange={async (val) => {
+                setDoctorPick((p: any) => ({ ...p, [c.id]: val }));
+                const allDocs = (doctorsList && doctorsList.length > 0) ? doctorsList : [
+                  { id: "doctor1", name: "Dr. Kadambari Jagtap" },
+                  { id: "doctor2", name: "Dr. Omprasad Jagtap" }
+                ];
+                const docObj = allDocs.find(d => d.id === val);
+                const assignedDocName = docObj ? docObj.name : (doctorName[val as "doctor1" | "doctor2"] || "Doctor");
+                
+                // If not in submitted, update doctor assignment immediately
+                if (c.status !== "submitted") {
+                  try {
+                    await updateDoc(doc(db, "case_papers", c.id), {
+                      assigned_doctor: val,
+                      assigned_doctor_name: assignedDocName,
+                      updated_at: serverTimestamp()
+                    });
+                    toast.success(`Assigned to Dr. ${assignedDocName}`);
+                  } catch (err: any) {
+                    toast.error(err.message);
+                  }
+                }
+              }}
+            >
+              <SelectTrigger className="w-full h-9 rounded-xl font-medium text-xs bg-white dark:bg-slate-800/90 border border-slate-200 dark:border-white/10 shadow-2xs">
+                <SelectValue placeholder="Pick doctor" />
+              </SelectTrigger>
+              <SelectContent>
+                {((doctorsList && doctorsList.length > 0) ? doctorsList : [
+                  { id: "doctor1", name: "Dr. Kadambari Jagtap" },
+                  { id: "doctor2", name: "Dr. Omprasad Jagtap" }
+                ]).map((doc: any) => (
+                  <SelectItem key={doc.id} value={doc.id}>{doc.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Button 
+            size="sm" 
+            onClick={(e) => {
+              e.stopPropagation();
+              sendToDoctor(c);
+            }}
+            className="w-full sm:w-auto rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 h-9 font-semibold text-xs text-white shadow-sm shrink-0 px-4"
+          >
+            <Send className="mr-1.5 h-3.5 w-3.5" /> Send to Dr.
+          </Button>
+        </div>
+
         {/* Toggle Expand / Collapse Bar - Default Compact View matches Image 2 */}
         <button
           type="button"
@@ -1873,29 +1939,6 @@ function PatientCaseCard({ c, doctorPick, setDoctorPick, sendToDoctor, onDelete,
             </div>
 
             <div className="pt-2 flex flex-col gap-2">
-              {c.status === "submitted" && (
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <Select
-                    value={doctorPick[c.id] || c.assigned_doctor || ""}
-                    onValueChange={(val) => setDoctorPick((p: any) => ({ ...p, [c.id]: val }))}
-                  >
-                    <SelectTrigger className="w-full sm:w-[200px] h-9 rounded-xl"><SelectValue placeholder="Pick doctor" /></SelectTrigger>
-                    <SelectContent>
-                      {doctorsList.map((doc: any) => (
-                        <SelectItem key={doc.id} value={doc.id}>{doc.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button 
-                    size="sm" 
-                    onClick={() => sendToDoctor(c)}
-                    className="w-full sm:flex-1 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 h-9 font-semibold text-xs"
-                  >
-                    <Send className="mr-1.5 h-4 w-4" /> Send to Dr.
-                  </Button>
-                </div>
-              )}
-
               {["returned_to_nurse", "billed", "completed"].includes(c.status) && (
                 <div className="flex flex-wrap gap-2">
                   <InvoicePreviewDialog
