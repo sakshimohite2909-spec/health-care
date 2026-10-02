@@ -1027,6 +1027,8 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
   const [instructions, setInstructions] = useState("After food (जेवणानंतर)");
   const [editingMedId, setEditingMedId] = useState<string | null>(null);
   const [isSubmittingMed, setIsSubmittingMed] = useState(false);
+  const [showManualEntry, setShowManualEntry] = useState(false);
+  const [manualRawText, setManualRawText] = useState("");
 
   const [consultationCharge, setConsultationCharge] = useState(Number(caseRow.consultation_charge ?? 0));
   const [medicineCharge, setMedicineCharge] = useState(Number(caseRow.medicine_charge ?? 0));
@@ -1083,15 +1085,31 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
 
     setIsSubmittingMed(true);
     try {
-      const morning = doseCode[0] === "1" ? "1 Tablet" : "0 Tablet";
-      const afternoon = doseCode[1] === "1" ? "1 Tablet" : "0 Tablet";
-      const evening = doseCode[2] === "1" ? "1 Tablet" : "0 Tablet";
+      const cleanCode = doseCode.trim() || "101";
+      let morning = "0 Tablet";
+      let afternoon = "0 Tablet";
+      let evening = "0 Tablet";
+
+      if (cleanCode.includes("-")) {
+        const parts = cleanCode.split("-");
+        morning = parts[0] && parts[0] !== "0" ? `${parts[0]} Tablet` : "0 Tablet";
+        afternoon = parts[1] && parts[1] !== "0" ? `${parts[1]} Tablet` : "0 Tablet";
+        evening = parts[2] && parts[2] !== "0" ? `${parts[2]} Tablet` : "0 Tablet";
+      } else if (cleanCode.length >= 3 && /^[0-9]+$/.test(cleanCode)) {
+        morning = cleanCode[0] !== "0" ? `${cleanCode[0]} Tablet` : "0 Tablet";
+        afternoon = cleanCode[1] !== "0" ? `${cleanCode[1]} Tablet` : "0 Tablet";
+        evening = cleanCode[2] !== "0" ? `${cleanCode[2]} Tablet` : "0 Tablet";
+      } else {
+        morning = cleanCode;
+        afternoon = "-";
+        evening = "-";
+      }
 
       const newMed: DoseMedicine = {
         id: editingMedId || `med_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
         name: medName.trim(),
         strength: medStrength.trim() || undefined,
-        dose_code: doseCode,
+        dose_code: cleanCode,
         morning_dose: morning,
         afternoon_dose: afternoon,
         evening_dose: evening,
@@ -1171,6 +1189,75 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
     setDoseCode("101");
     setDuration("5 Days");
     setInstructions("After food (जेवणानंतर)");
+  };
+
+  // Bulk / Free-text manual medicines parser
+  const handleParseAndAddManualMedicines = () => {
+    if (!manualRawText.trim()) {
+      toast.error("कृपया मॅन्युअल मजकूर प्रविष्ट करा");
+      return;
+    }
+
+    const lines = manualRawText.split("\n").map(l => l.trim()).filter(Boolean);
+    const newItems: DoseMedicine[] = [];
+
+    lines.forEach((line) => {
+      const cleaned = line.replace(/^[\d\.\)\-\•\*\s]+/, "").trim();
+      if (!cleaned) return;
+
+      const durationMatch = cleaned.match(/(\d+\s*(?:days?|weeks?|months?|दिवस))/i);
+      const dur = durationMatch ? durationMatch[1] : "5 Days";
+
+      const strengthMatch = cleaned.match(/(\d+\s*(?:mg|ml|gm|चमचा|गोळी|गोळ्या))/i);
+      const str = strengthMatch ? strengthMatch[1] : "";
+
+      const doseMatch = cleaned.match(/(\b[0-9]-[0-9]-[0-9]\b|\b[01]{3}\b|\bSOS\b)/i);
+      const dose = doseMatch ? doseMatch[1] : "101";
+
+      let namePart = cleaned;
+      if (durationMatch) namePart = namePart.replace(durationMatch[0], "");
+      if (strengthMatch) namePart = namePart.replace(strengthMatch[0], "");
+      if (doseMatch) namePart = namePart.replace(doseMatch[0], "");
+      namePart = namePart.replace(/[,\-–—]\s*$/, "").trim();
+
+      let morning = "1 Tablet";
+      let afternoon = "0 Tablet";
+      let evening = "1 Tablet";
+
+      if (dose.includes("-")) {
+        const parts = dose.split("-");
+        morning = parts[0] && parts[0] !== "0" ? `${parts[0]} Tablet` : "0 Tablet";
+        afternoon = parts[1] && parts[1] !== "0" ? `${parts[1]} Tablet` : "0 Tablet";
+        evening = parts[2] && parts[2] !== "0" ? `${parts[2]} Tablet` : "0 Tablet";
+      } else if (dose.length === 3 && /^[0-9]+$/.test(dose)) {
+        morning = dose[0] !== "0" ? `${dose[0]} Tablet` : "0 Tablet";
+        afternoon = dose[1] !== "0" ? `${dose[1]} Tablet` : "0 Tablet";
+        evening = dose[2] !== "0" ? `${dose[2]} Tablet` : "0 Tablet";
+      }
+
+      newItems.push({
+        id: `med_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        name: namePart || cleaned,
+        strength: str || undefined,
+        dose_code: dose,
+        morning_dose: morning,
+        afternoon_dose: afternoon,
+        evening_dose: evening,
+        duration: dur,
+        instructions: "After food (जेवणानंतर)",
+      });
+    });
+
+    if (newItems.length === 0) {
+      toast.error("औषध ओळखता आले नाही");
+      return;
+    }
+
+    const updated = [...doseMedicines, ...newItems];
+    setDoseMedicines(updated);
+    toast.success(`${newItems.length} औषधे यशस्वीरीत्या जोडली!`);
+    setManualRawText("");
+    setShowManualEntry(false);
   };
 
   const save = async (sendBack: boolean) => {
@@ -1695,10 +1782,22 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
                   </p>
                 </div>
                 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <Badge variant="outline" className="text-xs font-semibold px-2.5 py-1 bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border-teal-500/30">
                     एकूण औषधे: {doseMedicines.length}
                   </Badge>
+
+                  {/* Manual Quick Entry Button */}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowManualEntry(true)}
+                    className="rounded-xl h-8 text-xs font-semibold gap-1.5 border-teal-500/40 text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-950/40 cursor-pointer"
+                  >
+                    <Plus className="h-3.5 w-3.5" /> Manual Entry (मॅन्युअली जोडा)
+                  </Button>
+
                   {doseMedicines.length > 0 && (
                     <Button
                       type="button"
@@ -1771,22 +1870,28 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
                               [{med.dose_code}]
                             </span>
                             <span className="text-xs font-medium text-slate-600 dark:text-slate-300 truncate">
-                              {DOSE_CODES[med.dose_code]?.summary || `${med.morning_dose.replace(' Tablet','')}-${med.afternoon_dose.replace(' Tablet','')}-${med.evening_dose.replace(' Tablet','')}`}
+                              {DOSE_CODES[med.dose_code]?.summary || (med.afternoon_dose === "-" ? med.morning_dose : `${med.morning_dose.replace(' Tablet','')}-${med.afternoon_dose.replace(' Tablet','')}-${med.evening_dose.replace(' Tablet','')}`)}
                             </span>
                           </div>
-                          <div className="flex items-center gap-1 mt-1 text-[10px] text-muted-foreground flex-wrap">
-                            <span className={med.morning_dose !== "0 Tablet" ? "text-amber-600 dark:text-amber-400 font-bold" : "opacity-40"}>
-                              🌅 {med.morning_dose.replace(' Tablet','')}
-                            </span>
-                            •
-                            <span className={med.afternoon_dose !== "0 Tablet" ? "text-orange-600 dark:text-orange-400 font-bold" : "opacity-40"}>
-                              ☀️ {med.afternoon_dose.replace(' Tablet','')}
-                            </span>
-                            •
-                            <span className={med.evening_dose !== "0 Tablet" ? "text-indigo-600 dark:text-indigo-400 font-bold" : "opacity-40"}>
-                              🌙 {med.evening_dose.replace(' Tablet','')}
-                            </span>
-                          </div>
+                          {med.afternoon_dose !== "-" ? (
+                            <div className="flex items-center gap-1 mt-1 text-[10px] text-muted-foreground flex-wrap">
+                              <span className={med.morning_dose !== "0 Tablet" ? "text-amber-600 dark:text-amber-400 font-bold" : "opacity-40"}>
+                                🌅 {med.morning_dose.replace(' Tablet','')}
+                              </span>
+                              •
+                              <span className={med.afternoon_dose !== "0 Tablet" ? "text-orange-600 dark:text-orange-400 font-bold" : "opacity-40"}>
+                                ☀️ {med.afternoon_dose.replace(' Tablet','')}
+                              </span>
+                              •
+                              <span className={med.evening_dose !== "0 Tablet" ? "text-indigo-600 dark:text-indigo-400 font-bold" : "opacity-40"}>
+                                🌙 {med.evening_dose.replace(' Tablet','')}
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="text-[10px] text-muted-foreground mt-0.5">
+                              {med.morning_dose}
+                            </div>
+                          )}
                         </td>
 
                         {/* Duration */}
@@ -1918,37 +2023,111 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
                         </div>
                       </td>
 
-                      {/* Dose Code Select & Visual Indicator */}
+                      {/* Dose Code Input with Dropdown & Clickable Pills */}
                       <td className="py-2.5 px-1.5 align-top">
                         <div className="space-y-1">
-                          <Select value={doseCode} onValueChange={(val) => setDoseCode(val)}>
-                            <SelectTrigger className="rounded-xl text-xs sm:text-sm h-10 w-full bg-white dark:bg-slate-900 font-mono font-medium border-slate-300 dark:border-slate-700 focus:border-teal-500 shadow-2xs px-2">
-                              <SelectValue placeholder="Dose Code" />
-                            </SelectTrigger>
-                            <SelectContent className="rounded-xl max-h-[300px]">
-                              {Object.entries(DOSE_CODES).map(([code, details]) => (
-                                <SelectItem key={code} value={code} className="text-xs font-mono py-1.5 cursor-pointer">
-                                  <span className="font-bold text-teal-700 dark:text-teal-300">[{code}]</span> — {details.summary}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <div className="relative">
+                            <Input
+                              value={doseCode}
+                              onChange={(e) => setDoseCode(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  handleAddOrUpdateMedicine();
+                                }
+                              }}
+                              placeholder="उदा. 101, 1-0-1, SOS"
+                              className="rounded-xl text-xs sm:text-sm h-10 w-full pr-7 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 focus:border-teal-500 font-mono font-medium shadow-2xs"
+                            />
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button
+                                  type="button"
+                                  className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 rounded-md flex items-center justify-center text-slate-400 hover:text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-950/40 transition-colors cursor-pointer"
+                                  title="डोस कोड निवडा किंवा मॅन्युअली टाइप करा"
+                                >
+                                  <ChevronDown className="h-3.5 w-3.5" />
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="text-xs font-medium max-h-[300px] overflow-y-auto">
+                                {Object.entries(DOSE_CODES).map(([code, details]) => (
+                                  <DropdownMenuItem
+                                    key={code}
+                                    onClick={() => setDoseCode(code)}
+                                    className="cursor-pointer py-1.5 font-mono text-xs"
+                                  >
+                                    <span className="font-bold text-teal-700 dark:text-teal-300">[{code}]</span> — {details.summary}
+                                  </DropdownMenuItem>
+                                ))}
+                                <DropdownMenuItem onClick={() => setDoseCode("SOS")} className="cursor-pointer py-1.5 text-xs font-mono">
+                                  <span className="font-bold text-amber-600">[SOS]</span> — गरज असेल तेव्हा (As needed)
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setDoseCode("1-0-1")} className="cursor-pointer py-1.5 text-xs font-mono">
+                                  <span className="font-bold text-teal-700">[1-0-1]</span> — सकाळ व रात्र (Standard)
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setDoseCode("1-1-1")} className="cursor-pointer py-1.5 text-xs font-mono">
+                                  <span className="font-bold text-teal-700">[1-1-1]</span> — सकाळ, दुपार, रात्र
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setDoseCode("0-0-1")} className="cursor-pointer py-1.5 text-xs font-mono">
+                                  <span className="font-bold text-teal-700">[0-0-1]</span> — रात्री झोपताना
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                          
+                          {/* Clickable Quick Toggle Pills for Morning / Afternoon / Night */}
                           <div className="flex items-center gap-1 flex-wrap">
-                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold ${
-                              doseCode[0] === "1" ? "bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300" : "bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500"
-                            }`}>
-                              🌅 सकाळ:{doseCode[0]}
-                            </span>
-                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold ${
-                              doseCode[1] === "1" ? "bg-orange-100 text-orange-800 dark:bg-orange-950/50 dark:text-orange-300" : "bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500"
-                            }`}>
-                              ☀️ दुपार:{doseCode[1]}
-                            </span>
-                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold ${
-                              doseCode[2] === "1" ? "bg-indigo-100 text-indigo-800 dark:bg-indigo-950/50 dark:text-indigo-300" : "bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500"
-                            }`}>
-                              🌙 रात्र:{doseCode[2]}
-                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const m = doseCode[0] === "1" ? "0" : "1";
+                                const a = doseCode.length >= 2 ? doseCode[1] : "0";
+                                const e = doseCode.length >= 3 ? doseCode[2] : "0";
+                                setDoseCode(`${m}${a}${e}`);
+                              }}
+                              className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold cursor-pointer transition-all hover:scale-105 ${
+                                doseCode[0] === "1"
+                                  ? "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300/40"
+                                  : "bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500 hover:bg-slate-200"
+                              }`}
+                              title="सकाळचा डोस बदलण्यासाठी क्लिक करा"
+                            >
+                              🌅 सकाळ:{doseCode[0] === "1" ? "1" : "0"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const m = doseCode.length >= 1 ? doseCode[0] : "1";
+                                const a = doseCode.length >= 2 && doseCode[1] === "1" ? "0" : "1";
+                                const e = doseCode.length >= 3 ? doseCode[2] : "0";
+                                setDoseCode(`${m}${a}${e}`);
+                              }}
+                              className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold cursor-pointer transition-all hover:scale-105 ${
+                                doseCode[1] === "1"
+                                  ? "bg-orange-100 text-orange-800 dark:bg-orange-950/60 dark:text-orange-300 border border-orange-300/40"
+                                  : "bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500 hover:bg-slate-200"
+                              }`}
+                              title="दुपारचा डोस बदलण्यासाठी क्लिक करा"
+                            >
+                              ☀️ दुपार:{doseCode[1] === "1" ? "1" : "0"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const m = doseCode.length >= 1 ? doseCode[0] : "1";
+                                const a = doseCode.length >= 2 ? doseCode[1] : "0";
+                                const e = doseCode.length >= 3 && doseCode[2] === "1" ? "0" : "1";
+                                setDoseCode(`${m}${a}${e}`);
+                              }}
+                              className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold cursor-pointer transition-all hover:scale-105 ${
+                                doseCode[2] === "1"
+                                  ? "bg-indigo-100 text-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-300/40"
+                                  : "bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500 hover:bg-slate-200"
+                              }`}
+                              title="रात्रीचा डोस बदलण्यासाठी क्लिक करा"
+                            >
+                              🌙 रात्र:{doseCode[2] === "1" ? "1" : "0"}
+                            </button>
                           </div>
                         </div>
                       </td>
@@ -2088,6 +2267,57 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
                 </table>
               </div>
             </div>
+
+            {/* Manual Entry Dialog */}
+            <Dialog open={showManualEntry} onOpenChange={setShowManualEntry}>
+              <DialogContent className="max-w-lg rounded-2xl p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 shadow-2xl">
+                <DialogHeader>
+                  <DialogTitle className="text-base font-bold flex items-center gap-2 text-foreground">
+                    <Pill className="h-5 w-5 text-teal-600" /> मॅन्युअली औषधे जोडा (Manual Medicine Entry)
+                  </DialogTitle>
+                  <DialogDescription className="text-xs text-muted-foreground">
+                    एका ओळीत एक औषध लिहा किंवा पेस्ट करा. औषधाचे नाव, प्रमाण, डोस (उदा. 1-0-1) आणि कालावधी आपोआप ओळखले जातील.
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-3 pt-2">
+                  <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 text-[11px] text-muted-foreground border border-slate-200/60 dark:border-slate-800">
+                    <div className="font-bold text-foreground mb-1">उदाहरणे (Examples):</div>
+                    <div>• Tab. Arogyavardhini Vati 250mg 1-0-1 5 Days</div>
+                    <div>• Mahasudarshan Ghanvati 500mg 0-1-0 15 Days</div>
+                    <div>• Sitopaladi Churna 1 चमचा 1-1-1 7 Days</div>
+                  </div>
+
+                  <Textarea
+                    value={manualRawText}
+                    onChange={(e) => setManualRawText(e.target.value)}
+                    placeholder="औषधे येथे पेस्ट करा किंवा टाईप करा..."
+                    rows={6}
+                    className="rounded-xl text-xs font-mono p-3 bg-white dark:bg-slate-950 border-slate-300 dark:border-slate-700"
+                  />
+
+                  <div className="flex items-center justify-end gap-2 pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowManualEntry(false)}
+                      className="rounded-xl text-xs h-9 px-3"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleParseAndAddManualMedicines}
+                      className="rounded-xl text-xs h-9 px-4 bg-teal-600 hover:bg-teal-700 text-white font-bold gap-1.5"
+                    >
+                      <Plus className="h-4 w-4" /> औषधे तक्त्यात जोडा (Add to Table)
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
 
           </div>
         )}
