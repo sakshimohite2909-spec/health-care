@@ -1022,9 +1022,9 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
   // Medicine prescription form inputs
   const [medName, setMedName] = useState("");
   const [medStrength, setMedStrength] = useState("");
-  const [doseCode, setDoseCode] = useState<string>("101");
-  const [duration, setDuration] = useState("5 Days");
-  const [instructions, setInstructions] = useState("After food (जेवणानंतर)");
+  const [doseCode, setDoseCode] = useState<string>("");
+  const [duration, setDuration] = useState("");
+  const [instructions, setInstructions] = useState("");
   const [editingMedId, setEditingMedId] = useState<string | null>(null);
   const [isSubmittingMed, setIsSubmittingMed] = useState(false);
 
@@ -1055,12 +1055,12 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
       setTestCharge(Number(caseRow.test_charge ?? 0));
       setOtherCharge(Number(caseRow.other_charge ?? 0));
       setActiveCaseTab("case_paper");
-      // Reset med form
+      // Reset med form to completely blank
       setMedName("");
       setMedStrength("");
-      setDoseCode("101");
-      setDuration("5 Days");
-      setInstructions("After food (जेवणानंतर)");
+      setDoseCode("");
+      setDuration("");
+      setInstructions("");
       setEditingMedId(null);
     }
   }, [open, caseRow]);
@@ -1136,12 +1136,12 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
         setMedicines(autoText);
       }
 
-      // Reset form
+      // Reset form to blank
       setMedName("");
       setMedStrength("");
-      setDoseCode("101");
-      setDuration("5 Days");
-      setInstructions("After food (जेवणानंतर)");
+      setDoseCode("");
+      setDuration("");
+      setInstructions("");
     } finally {
       setIsSubmittingMed(false);
     }
@@ -1165,9 +1165,9 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
       setEditingMedId(null);
       setMedName("");
       setMedStrength("");
-      setDoseCode("101");
-      setDuration("5 Days");
-      setInstructions("After food (जेवणानंतर)");
+      setDoseCode("");
+      setDuration("");
+      setInstructions("");
     }
     
     // Refresh medicines text box
@@ -1184,9 +1184,9 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
     setEditingMedId(null);
     setMedName("");
     setMedStrength("");
-    setDoseCode("101");
-    setDuration("5 Days");
-    setInstructions("After food (जेवणानंतर)");
+    setDoseCode("");
+    setDuration("");
+    setInstructions("");
   };
 
 
@@ -1999,53 +1999,50 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
                             <button
                               type="button"
                               onClick={() => {
-                                const m = doseCode[0] === "1" ? "0" : "1";
-                                const a = doseCode.length >= 2 ? doseCode[1] : "0";
-                                const e = doseCode.length >= 3 ? doseCode[2] : "0";
-                                setDoseCode(`${m}${a}${e}`);
+                                const base = doseCode.length === 3 ? doseCode : "000";
+                                const m = base[0] === "1" ? "0" : "1";
+                                setDoseCode(`${m}${base[1]}${base[2]}`);
                               }}
                               className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold cursor-pointer transition-all hover:scale-105 ${
-                                doseCode[0] === "1"
+                                doseCode && doseCode[0] === "1"
                                   ? "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300/40"
                                   : "bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500 hover:bg-slate-200"
                               }`}
                               title="सकाळचा डोस बदलण्यासाठी क्लिक करा"
                             >
-                              🌅 सकाळ:{doseCode[0] === "1" ? "1" : "0"}
+                              🌅 सकाळ:{doseCode && doseCode[0] === "1" ? "1" : "0"}
                             </button>
                             <button
                               type="button"
                               onClick={() => {
-                                const m = doseCode.length >= 1 ? doseCode[0] : "1";
-                                const a = doseCode.length >= 2 && doseCode[1] === "1" ? "0" : "1";
-                                const e = doseCode.length >= 3 ? doseCode[2] : "0";
-                                setDoseCode(`${m}${a}${e}`);
+                                const base = doseCode.length === 3 ? doseCode : "000";
+                                const a = base[1] === "1" ? "0" : "1";
+                                setDoseCode(`${base[0]}${a}${base[2]}`);
                               }}
                               className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold cursor-pointer transition-all hover:scale-105 ${
-                                doseCode[1] === "1"
+                                doseCode && doseCode[1] === "1"
                                   ? "bg-orange-100 text-orange-800 dark:bg-orange-950/60 dark:text-orange-300 border border-orange-300/40"
                                   : "bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500 hover:bg-slate-200"
                               }`}
                               title="दुपारचा डोस बदलण्यासाठी क्लिक करा"
                             >
-                              ☀️ दुपार:{doseCode[1] === "1" ? "1" : "0"}
+                              ☀️ दुपार:{doseCode && doseCode[1] === "1" ? "1" : "0"}
                             </button>
                             <button
                               type="button"
                               onClick={() => {
-                                const m = doseCode.length >= 1 ? doseCode[0] : "1";
-                                const a = doseCode.length >= 2 ? doseCode[1] : "0";
-                                const e = doseCode.length >= 3 && doseCode[2] === "1" ? "0" : "1";
-                                setDoseCode(`${m}${a}${e}`);
+                                const base = doseCode.length === 3 ? doseCode : "000";
+                                const e = base[2] === "1" ? "0" : "1";
+                                setDoseCode(`${base[0]}${base[1]}${e}`);
                               }}
                               className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold cursor-pointer transition-all hover:scale-105 ${
-                                doseCode[2] === "1"
+                                doseCode && doseCode[2] === "1"
                                   ? "bg-indigo-100 text-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-300/40"
                                   : "bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500 hover:bg-slate-200"
                               }`}
                               title="रात्रीचा डोस बदलण्यासाठी क्लिक करा"
                             >
-                              🌙 रात्र:{doseCode[2] === "1" ? "1" : "0"}
+                              🌙 रात्र:{doseCode && doseCode[2] === "1" ? "1" : "0"}
                             </button>
                           </div>
                         </div>
