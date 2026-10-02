@@ -1755,7 +1755,7 @@ function PatientCaseCard({ c, doctorPick, setDoctorPick, sendToDoctor, onDelete,
                   { id: "doctor1", name: "Dr. Kadambari Jagtap" },
                   { id: "doctor2", name: "Dr. Omprasad Jagtap" }
                 ];
-                const docObj = allDocs.find(d => d.id === val);
+                const docObj = allDocs.find((d: any) => d.id === val);
                 const assignedDocName = docObj ? docObj.name : (doctorName[val as "doctor1" | "doctor2"] || "Doctor");
                 
                 // If not in submitted, update doctor assignment immediately
