@@ -1027,8 +1027,6 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
   const [instructions, setInstructions] = useState("After food (जेवणानंतर)");
   const [editingMedId, setEditingMedId] = useState<string | null>(null);
   const [isSubmittingMed, setIsSubmittingMed] = useState(false);
-  const [showManualEntry, setShowManualEntry] = useState(false);
-  const [manualRawText, setManualRawText] = useState("");
 
   const [consultationCharge, setConsultationCharge] = useState(Number(caseRow.consultation_charge ?? 0));
   const [medicineCharge, setMedicineCharge] = useState(Number(caseRow.medicine_charge ?? 0));
@@ -1191,74 +1189,6 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
     setInstructions("After food (जेवणानंतर)");
   };
 
-  // Bulk / Free-text manual medicines parser
-  const handleParseAndAddManualMedicines = () => {
-    if (!manualRawText.trim()) {
-      toast.error("कृपया मॅन्युअल मजकूर प्रविष्ट करा");
-      return;
-    }
-
-    const lines = manualRawText.split("\n").map(l => l.trim()).filter(Boolean);
-    const newItems: DoseMedicine[] = [];
-
-    lines.forEach((line) => {
-      const cleaned = line.replace(/^[\d\.\)\-\•\*\s]+/, "").trim();
-      if (!cleaned) return;
-
-      const durationMatch = cleaned.match(/(\d+\s*(?:days?|weeks?|months?|दिवस))/i);
-      const dur = durationMatch ? durationMatch[1] : "5 Days";
-
-      const strengthMatch = cleaned.match(/(\d+\s*(?:mg|ml|gm|चमचा|गोळी|गोळ्या))/i);
-      const str = strengthMatch ? strengthMatch[1] : "";
-
-      const doseMatch = cleaned.match(/(\b[0-9]-[0-9]-[0-9]\b|\b[01]{3}\b|\bSOS\b)/i);
-      const dose = doseMatch ? doseMatch[1] : "101";
-
-      let namePart = cleaned;
-      if (durationMatch) namePart = namePart.replace(durationMatch[0], "");
-      if (strengthMatch) namePart = namePart.replace(strengthMatch[0], "");
-      if (doseMatch) namePart = namePart.replace(doseMatch[0], "");
-      namePart = namePart.replace(/[,\-–—]\s*$/, "").trim();
-
-      let morning = "1 Tablet";
-      let afternoon = "0 Tablet";
-      let evening = "1 Tablet";
-
-      if (dose.includes("-")) {
-        const parts = dose.split("-");
-        morning = parts[0] && parts[0] !== "0" ? `${parts[0]} Tablet` : "0 Tablet";
-        afternoon = parts[1] && parts[1] !== "0" ? `${parts[1]} Tablet` : "0 Tablet";
-        evening = parts[2] && parts[2] !== "0" ? `${parts[2]} Tablet` : "0 Tablet";
-      } else if (dose.length === 3 && /^[0-9]+$/.test(dose)) {
-        morning = dose[0] !== "0" ? `${dose[0]} Tablet` : "0 Tablet";
-        afternoon = dose[1] !== "0" ? `${dose[1]} Tablet` : "0 Tablet";
-        evening = dose[2] !== "0" ? `${dose[2]} Tablet` : "0 Tablet";
-      }
-
-      newItems.push({
-        id: `med_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-        name: namePart || cleaned,
-        strength: str || undefined,
-        dose_code: dose,
-        morning_dose: morning,
-        afternoon_dose: afternoon,
-        evening_dose: evening,
-        duration: dur,
-        instructions: "After food (जेवणानंतर)",
-      });
-    });
-
-    if (newItems.length === 0) {
-      toast.error("औषध ओळखता आले नाही");
-      return;
-    }
-
-    const updated = [...doseMedicines, ...newItems];
-    setDoseMedicines(updated);
-    toast.success(`${newItems.length} औषधे यशस्वीरीत्या जोडली!`);
-    setManualRawText("");
-    setShowManualEntry(false);
-  };
 
   const save = async (sendBack: boolean) => {
     setSaving(true);
@@ -1782,21 +1712,10 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
                   </p>
                 </div>
                 
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-2">
                   <Badge variant="outline" className="text-xs font-semibold px-2.5 py-1 bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border-teal-500/30">
                     एकूण औषधे: {doseMedicines.length}
                   </Badge>
-
-                  {/* Manual Quick Entry Button */}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowManualEntry(true)}
-                    className="rounded-xl h-8 text-xs font-semibold gap-1.5 border-teal-500/40 text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-950/40 cursor-pointer"
-                  >
-                    <Plus className="h-3.5 w-3.5" /> Manual Entry (मॅन्युअली जोडा)
-                  </Button>
 
                   {doseMedicines.length > 0 && (
                     <Button
@@ -2267,58 +2186,6 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
                 </table>
               </div>
             </div>
-
-            {/* Manual Entry Dialog */}
-            <Dialog open={showManualEntry} onOpenChange={setShowManualEntry}>
-              <DialogContent className="max-w-lg rounded-2xl p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 shadow-2xl">
-                <DialogHeader>
-                  <DialogTitle className="text-base font-bold flex items-center gap-2 text-foreground">
-                    <Pill className="h-5 w-5 text-teal-600" /> मॅन्युअली औषधे जोडा (Manual Medicine Entry)
-                  </DialogTitle>
-                  <DialogDescription className="text-xs text-muted-foreground">
-                    एका ओळीत एक औषध लिहा किंवा पेस्ट करा. औषधाचे नाव, प्रमाण, डोस (उदा. 1-0-1) आणि कालावधी आपोआप ओळखले जातील.
-                  </DialogDescription>
-                </DialogHeader>
-
-                <div className="space-y-3 pt-2">
-                  <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 text-[11px] text-muted-foreground border border-slate-200/60 dark:border-slate-800">
-                    <div className="font-bold text-foreground mb-1">उदाहरणे (Examples):</div>
-                    <div>• Tab. Arogyavardhini Vati 250mg 1-0-1 5 Days</div>
-                    <div>• Mahasudarshan Ghanvati 500mg 0-1-0 15 Days</div>
-                    <div>• Sitopaladi Churna 1 चमचा 1-1-1 7 Days</div>
-                  </div>
-
-                  <Textarea
-                    value={manualRawText}
-                    onChange={(e) => setManualRawText(e.target.value)}
-                    placeholder="औषधे येथे पेस्ट करा किंवा टाईप करा..."
-                    rows={6}
-                    className="rounded-xl text-xs font-mono p-3 bg-white dark:bg-slate-950 border-slate-300 dark:border-slate-700"
-                  />
-
-                  <div className="flex items-center justify-end gap-2 pt-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowManualEntry(false)}
-                      className="rounded-xl text-xs h-9 px-3"
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={handleParseAndAddManualMedicines}
-                      className="rounded-xl text-xs h-9 px-4 bg-teal-600 hover:bg-teal-700 text-white font-bold gap-1.5"
-                    >
-                      <Plus className="h-4 w-4" /> औषधे तक्त्यात जोडा (Add to Table)
-                    </Button>
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
-
           </div>
         )}
 
