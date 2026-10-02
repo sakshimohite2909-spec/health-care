@@ -827,7 +827,6 @@ function StatCard({ label, value, icon: Icon, color, pulse = false }: { label: s
 }
 
 function PatientCaseCard({ c, onAccept, onSaved, meta, onDelete }: { c: any; onAccept: () => void; onSaved: () => void; meta: any; onDelete?: (c: any) => void }) {
-  const [complaintExpanded, setComplaintExpanded] = useState(false);
   const initials = c.full_name ? c.full_name.split(" ").map((n: string) => n[0]).join("").substring(0, 2).toUpperCase() : "PT";
 
   const isPending = c.status === "sent_to_doctor";
@@ -843,10 +842,6 @@ function PatientCaseCard({ c, onAccept, onSaved, meta, onDelete }: { c: any; onA
     return new Date(c.created_at).toLocaleDateString();
   }, [c.created_at]);
 
-  const complaintPreview = c.notes && c.notes.length > 90 
-    ? `${c.notes.substring(0, 90)}...` 
-    : c.notes;
-
   return (
     <Card 
       style={{ display: "flex", flexDirection: "column", height: "100%", flex: 1, width: "100%" }}
@@ -856,7 +851,7 @@ function PatientCaseCard({ c, onAccept, onSaved, meta, onDelete }: { c: any; onA
       ${isReviewing ? "border-l-4 border-violet-400 shadow-[0_0_15px_rgba(139,92,246,0.1)]" : ""}
     `}
     >
-      <CardContent style={{ display: "flex", flexDirection: "column", height: "100%", flex: 1 }} className="p-5 gap-4">
+      <CardContent style={{ display: "flex", flexDirection: "column", height: "100%", flex: 1 }} className="p-4 sm:p-5 gap-3.5">
         
         {/* Card Header Profile & Status */}
         <div className="flex items-start justify-between gap-2.5">
@@ -887,112 +882,24 @@ function PatientCaseCard({ c, onAccept, onSaved, meta, onDelete }: { c: any; onA
         {/* Info Grid details */}
         <div className="grid grid-cols-2 gap-2 text-xs">
           <div className="bg-muted/30 border border-muted/50 rounded-xl px-3 py-2 flex flex-col">
-            <span className="text-[9px] uppercase tracking-wide text-muted-foreground">Age / Gender</span>
-            <span className="font-semibold text-foreground mt-0.5 truncate">{String(c.age ?? calculateAge(c.dob))} Y {c.gender ? `/ ${c.gender}` : ''}</span>
+            <span className="text-[9px] uppercase tracking-wide text-muted-foreground font-semibold">Age / Gender</span>
+            <span className="font-bold text-foreground mt-0.5 truncate">{String(c.age ?? calculateAge(c.dob))} Y {c.gender ? `/ ${c.gender}` : ''}</span>
           </div>
           <div className="bg-muted/30 border border-muted/50 rounded-xl px-3 py-2 flex flex-col">
-            <span className="text-[9px] uppercase tracking-wide text-muted-foreground">Mobile Contact</span>
-            <span className="font-semibold text-foreground mt-0.5 flex items-center gap-1">
+            <span className="text-[9px] uppercase tracking-wide text-muted-foreground font-semibold">Mobile Contact</span>
+            <span className="font-bold text-foreground mt-0.5 flex items-center gap-1 truncate">
               <Phone className="h-3 w-3 text-muted-foreground" />
               <span>{c.mobile || "—"}</span>
             </span>
           </div>
           <div className="bg-muted/30 border border-muted/50 rounded-xl px-3 py-2 flex flex-col col-span-2">
-            <span className="text-[9px] uppercase tracking-wide text-muted-foreground">Address</span>
-            <span className="font-semibold text-foreground mt-0.5 flex items-center gap-1">
-              <span>{c.address || "—"}</span>
-            </span>
+            <span className="text-[9px] uppercase tracking-wide text-muted-foreground font-semibold">Address</span>
+            <span className="font-bold text-foreground mt-0.5 truncate">{c.address || "—"}</span>
           </div>
         </div>
-
-        {/* Full patient details expandable section */}
-        <div className="border border-slate-100 dark:border-white/5 rounded-xl p-3 bg-muted/10">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-[10px] uppercase tracking-wider font-bold text-primary block">
-              Patient History & Details
-            </span>
-            <button onClick={() => setComplaintExpanded(!complaintExpanded)} className="text-[10px] text-primary hover:underline font-bold">
-              {complaintExpanded ? "Hide Details" : "Show Full Details"}
-            </button>
-          </div>
-          
-          {complaintExpanded && (
-            <div className="grid grid-cols-2 gap-y-3 gap-x-4 text-xs mt-3 border-t dark:border-white/5 pt-3">
-              <div>
-                <span className="text-[9px] uppercase text-muted-foreground block">Marital Status</span>
-                <span className="font-semibold text-foreground">{c.marital_status || "—"}</span>
-              </div>
-              <div>
-                <span className="text-[9px] uppercase text-muted-foreground block">Weight</span>
-                <span className="font-semibold text-foreground">{c.weight || "—"}</span>
-              </div>
-              <div>
-                <span className="text-[9px] uppercase text-muted-foreground block">Education</span>
-                <span className="font-semibold text-foreground">{c.education || "—"}</span>
-              </div>
-              <div>
-                <span className="text-[9px] uppercase text-muted-foreground block">Occupation</span>
-                <span className="font-semibold text-foreground">{c.occupation || "—"}</span>
-              </div>
-              <div>
-                <span className="text-[9px] uppercase text-muted-foreground block">Parent's Occu.</span>
-                <span className="font-semibold text-foreground">{c.parents_occupation || "—"}</span>
-              </div>
-              <div>
-                <span className="text-[9px] uppercase text-muted-foreground block">Past History</span>
-                <span className="font-semibold text-foreground">{c.past_history || "—"}</span>
-              </div>
-              {c.gender === "Female" && (
-                <div className="col-span-2">
-                  <span className="text-[9px] uppercase text-muted-foreground block text-pink-600 dark:text-pink-400">Menstrual History</span>
-                  <span className="font-semibold text-foreground">{c.menstrual_history || "—"}</span>
-                </div>
-              )}
-            </div>
-          )}
-
-          {c.notes && (
-             <div className="mt-3 border-t dark:border-white/5 pt-3">
-               <span className="text-[9px] uppercase tracking-wider font-bold text-amber-600 dark:text-amber-400 block mb-1">
-                 Chief Complaints / Notes:
-               </span>
-               <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-line italic">
-                 {c.notes}
-               </p>
-             </div>
-          )}
-        </div>
-
-        {/* Doctor clinical summary previews if any */}
-        {(c.prescription || c.medical_notes || c.medicines || (c.dose_medicines && c.dose_medicines.length > 0)) && (
-          <div className="border border-emerald-500/10 bg-emerald-500/[0.02] rounded-xl p-3 text-xs space-y-1.5">
-            {c.medical_notes && (
-              <div>
-                <span className="font-semibold text-[9px] uppercase text-emerald-600 dark:text-emerald-400">Diagnosis:</span>
-                <p className="text-muted-foreground truncate">{c.medical_notes}</p>
-              </div>
-            )}
-            {c.prescription && (
-              <div>
-                <span className="font-semibold text-[9px] uppercase text-emerald-600 dark:text-emerald-400">Notes / Advice:</span>
-                <p className="text-muted-foreground truncate">{c.prescription}</p>
-              </div>
-            )}
-            {(c.dose_medicines?.length > 0 || c.medicines) && (
-              <div>
-                <span className="font-semibold text-[9px] uppercase text-amber-600 dark:text-amber-400">Prescription / Medicines:</span>
-                <p className="text-muted-foreground truncate font-medium">
-                  {c.dose_medicines && c.dose_medicines.length > 0 
-                    ? c.dose_medicines.map((m: any) => m.name).join(", ") 
-                    : c.medicines}
-                </p>
-              </div>
-            )}
-          </div>
-        )}
 
         {/* Action Button Area */}
-        <div className="mt-auto pt-2 flex flex-wrap gap-2">
+        <div className="mt-auto pt-1 flex flex-wrap gap-2">
           {isPending && (
             <Button 
               size="sm" 
