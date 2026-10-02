@@ -1444,121 +1444,99 @@ function NurseClinicalEditDialog({
                 </div>
               </div>
 
-              {/* Doctor's Treatment & Prescription Section */}
-              <div className="mt-4 pt-3 border-t border-slate-300 flex flex-col gap-3.5">
-                
-                {/* 1. Prescription & Medicines (औषधोपचार) */}
-                <div>
-                  <div className="font-bold text-[13px] text-black mb-1.5 flex items-center justify-between">
-                    <span className="flex items-center gap-1.5">
-                      <span className="font-serif font-bold text-base text-[#b45309]">Rx</span>
-                      <span>Prescription & Medicines (औषधोपचार) :</span>
-                    </span>
-                    {caseRow.dose_medicines && caseRow.dose_medicines.length > 0 ? (
-                      <span className="text-[10.5px] bg-amber-100 text-amber-900 font-bold px-2 py-0.5 rounded border border-amber-300 flex items-center gap-1">
-                        <Pill className="h-3 w-3 text-amber-700" />
-                        <span>{caseRow.dose_medicines.length} Medicines</span>
-                      </span>
-                    ) : (
-                      <span className="text-[10px] text-slate-500 font-normal">Dosage / Timings</span>
-                    )}
-                  </div>
-
+              {/* Doctor's Treatment & Prescription Section (Shown only after prescribed by Doctor) */}
+              {(caseRow.dose_medicines?.length > 0 || caseRow.prescription || caseRow.tests || caseRow.medical_notes) && (
+                <div className="mt-4 pt-3 border-t border-slate-300 flex flex-col gap-3.5">
                   {caseRow.dose_medicines && caseRow.dose_medicines.length > 0 ? (
-                    <div className="rounded-lg border border-amber-300 bg-white overflow-hidden shadow-xs">
-                      {/* Clean, authentic medical prescription table spanning full width */}
-                      <table className="w-full text-[11.5px] text-left border-collapse font-sans">
-                        <thead>
-                          <tr className="bg-amber-100/70 border-b border-amber-200 text-black font-bold text-[11px]">
-                            <th className="py-1.5 px-3 w-8 text-center">#</th>
-                            <th className="py-1.5 px-3">औषध (Medicine)</th>
-                            <th className="py-1.5 px-2 text-center w-36">डोस (स-दु-रा)</th>
-                            <th className="py-1.5 px-3 text-center w-24">कालावधी</th>
-                            <th className="py-1.5 px-3">सूचना</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-amber-100/80">
-                          {caseRow.dose_medicines.map((m: any, idx: number) => (
-                            <tr key={m.id || idx} className={idx % 2 === 1 ? "bg-amber-50/30" : "bg-white"}>
-                              <td className="py-1.5 px-3 text-center font-bold text-amber-800 text-[11px] align-middle">
-                                {idx + 1}
-                              </td>
-                              <td className="py-1.5 px-3 font-serif font-bold text-black align-middle">
-                                <div className="text-[12.5px]">{m.name}</div>
-                                {m.strength && (
-                                  <span className="inline-block text-[9.5px] font-sans font-normal text-slate-600 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200 mt-0.5">
-                                    {m.strength}
-                                  </span>
-                                )}
-                              </td>
-                              <td className="py-1.5 px-2 text-center align-middle whitespace-nowrap">
-                                <span className="inline-block font-mono font-bold text-xs bg-amber-50 text-amber-950 px-2 py-0.5 rounded border border-amber-300">
-                                  {m.morning_dose.replace(' Tablet', '')} - {m.afternoon_dose.replace(' Tablet', '')} - {m.evening_dose.replace(' Tablet', '')}
-                                </span>
-                                <span className="text-[9.5px] text-slate-500 font-mono ml-1.5">[{m.dose_code}]</span>
-                              </td>
-                              <td className="py-1.5 px-3 text-center font-semibold text-slate-800 align-middle whitespace-nowrap">
-                                {m.duration}
-                              </td>
-                              <td className="py-1.5 px-3 text-slate-700 italic text-[11px] font-serif align-middle">
-                                {m.instructions || "—"}
-                              </td>
+                    <div>
+                      <div className="font-bold text-[13px] text-black mb-1.5 flex items-center justify-between">
+                        <span className="flex items-center gap-1.5">
+                          <span className="font-serif font-bold text-base text-[#b45309]">Rx</span>
+                          <span>Prescription & Medicines (औषधोपचार) :</span>
+                        </span>
+                        <span className="text-[10.5px] bg-amber-100 text-amber-900 font-bold px-2 py-0.5 rounded border border-amber-300 flex items-center gap-1">
+                          <Pill className="h-3 w-3 text-amber-700" />
+                          <span>{caseRow.dose_medicines.length} Medicines</span>
+                        </span>
+                      </div>
+                      <div className="rounded-lg border border-amber-300 bg-white overflow-hidden shadow-xs">
+                        <table className="w-full text-[11.5px] text-left border-collapse font-sans">
+                          <thead>
+                            <tr className="bg-amber-100/70 border-b border-amber-200 text-black font-bold text-[11px]">
+                              <th className="py-1.5 px-3 w-8 text-center">#</th>
+                              <th className="py-1.5 px-3">औषध (Medicine)</th>
+                              <th className="py-1.5 px-2 text-center w-36">डोस (स-दु-रा)</th>
+                              <th className="py-1.5 px-3 text-center w-24">कालावधी</th>
+                              <th className="py-1.5 px-3">सूचना</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody className="divide-y divide-amber-100/80">
+                            {caseRow.dose_medicines.map((m: any, idx: number) => (
+                              <tr key={m.id || idx} className={idx % 2 === 1 ? "bg-amber-50/30" : "bg-white"}>
+                                <td className="py-1.5 px-3 text-center font-bold text-amber-800 text-[11px] align-middle">
+                                  {idx + 1}
+                                </td>
+                                <td className="py-1.5 px-3 font-serif font-bold text-black align-middle">
+                                  <div className="text-[12.5px]">{m.name}</div>
+                                  {m.strength && (
+                                    <span className="inline-block text-[9.5px] font-sans font-normal text-slate-600 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200 mt-0.5">
+                                      {m.strength}
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="py-1.5 px-2 text-center align-middle whitespace-nowrap">
+                                  <span className="inline-block font-mono font-bold text-xs bg-amber-50 text-amber-950 px-2 py-0.5 rounded border border-amber-300">
+                                    {m.morning_dose.replace(' Tablet', '')} - {m.afternoon_dose.replace(' Tablet', '')} - {m.evening_dose.replace(' Tablet', '')}
+                                  </span>
+                                  <span className="text-[9.5px] text-slate-500 font-mono ml-1.5">[{m.dose_code}]</span>
+                                </td>
+                                <td className="py-1.5 px-3 text-center font-semibold text-slate-800 align-middle whitespace-nowrap">
+                                  {m.duration}
+                                </td>
+                                <td className="py-1.5 px-3 text-slate-700 italic text-[11px] font-serif align-middle">
+                                  {m.instructions || "—"}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
-                  ) : (
-                    <div className="relative">
-                      <Textarea
-                        rows={3}
-                        value={prescription}
-                        onChange={(e) => setPrescription(e.target.value)}
-                        placeholder="Enter patient Rx dosage & instructions..."
-                        className="w-full text-xs font-serif p-2.5 rounded-lg border border-amber-300/80 bg-white text-black pr-8 resize-none min-h-[70px]"
-                      />
-                      <VoiceButton onTranscript={(val) => setPrescription((prev: string) => prev ? prev + "\n" + val : val)} positionClassName="top-2.5 right-2" />
+                  ) : caseRow.prescription ? (
+                    <div>
+                      <div className="font-bold text-[13px] text-black mb-1">
+                        <span className="font-serif font-bold text-base text-[#b45309] mr-1.5">Rx</span>
+                        Prescription (औषधोपचार) :
+                      </div>
+                      <div className="p-2.5 rounded-lg border border-amber-300/80 bg-amber-50/20 text-xs font-serif whitespace-pre-wrap">
+                        {caseRow.prescription}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {caseRow.tests && (
+                    <div>
+                      <div className="font-bold text-[13px] text-black mb-1">
+                        Clinical Tests (तपासण्या / लॅब टेस्ट) :
+                      </div>
+                      <div className="p-2 rounded-lg border border-amber-300/80 bg-amber-50/20 text-xs font-serif whitespace-pre-wrap">
+                        {caseRow.tests}
+                      </div>
+                    </div>
+                  )}
+
+                  {caseRow.medical_notes && (
+                    <div>
+                      <div className="font-bold text-[13px] text-black mb-1">
+                        Advice (विशेष सूचना / पथ्य) :
+                      </div>
+                      <div className="p-2 rounded-lg border border-amber-300/80 bg-amber-50/20 text-xs font-serif whitespace-pre-wrap">
+                        {caseRow.medical_notes}
+                      </div>
                     </div>
                   )}
                 </div>
-
-                {/* 2. Clinical Tests */}
-                <div>
-                  <div className="font-bold text-[13px] text-black mb-1 flex items-center justify-between">
-                    <span>Clinical Tests (तपासण्या / लॅब टेस्ट) :</span>
-                    <span className="text-[10px] text-slate-500 font-normal">Lab / radiology</span>
-                  </div>
-                  <div className="relative">
-                    <Textarea
-                      rows={2}
-                      value={tests}
-                      onChange={(e) => setTests(e.target.value)}
-                      placeholder="Required lab / radiology test names..."
-                      className="w-full text-xs font-serif p-2 rounded-lg border border-amber-300/80 bg-white text-black pr-8 resize-none h-[48px]"
-                    />
-                    <VoiceButton onTranscript={(val) => setTests((prev: string) => prev ? prev + "\n" + val : val)} positionClassName="top-2 right-2" />
-                  </div>
-                </div>
-
-                {/* 3. Advice */}
-                <div>
-                  <div className="font-bold text-[13px] text-black mb-1 flex items-center justify-between">
-                    <span>Advice (विशेष सूचना / पथ्य) :</span>
-                    <span className="text-[10px] text-slate-500 font-normal">Dietary & lifestyle advice</span>
-                  </div>
-                  <div className="relative">
-                    <Textarea
-                      rows={2}
-                      value={prescription}
-                      onChange={(e) => setPrescription(e.target.value)}
-                      placeholder="Enter dietary advice, precautions, follow-up advice..."
-                      className="w-full text-xs font-serif p-2 rounded-lg border border-amber-300/80 bg-white text-black pr-8 resize-none h-[52px]"
-                    />
-                    <VoiceButton onTranscript={(val) => setPrescription((prev: string) => prev ? prev + "\n" + val : val)} positionClassName="top-2 right-2" />
-                  </div>
-                </div>
-
-              </div>
+              )}
             </div>
 
             {/* Faint Swoosh Background */}
