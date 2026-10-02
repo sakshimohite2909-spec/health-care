@@ -963,7 +963,7 @@ function PatientCaseCard({ c, onAccept, onSaved, meta, onDelete }: { c: any; onA
         </div>
 
         {/* Doctor clinical summary previews if any */}
-        {(c.prescription || c.medical_notes) && (
+        {(c.prescription || c.medical_notes || c.medicines || (c.dose_medicines && c.dose_medicines.length > 0)) && (
           <div className="border border-emerald-500/10 bg-emerald-500/[0.02] rounded-xl p-3 text-xs space-y-1.5">
             {c.medical_notes && (
               <div>
@@ -973,8 +973,18 @@ function PatientCaseCard({ c, onAccept, onSaved, meta, onDelete }: { c: any; onA
             )}
             {c.prescription && (
               <div>
-                <span className="font-semibold text-[9px] uppercase text-emerald-600 dark:text-emerald-400">Prescription:</span>
+                <span className="font-semibold text-[9px] uppercase text-emerald-600 dark:text-emerald-400">Notes / Advice:</span>
                 <p className="text-muted-foreground truncate">{c.prescription}</p>
+              </div>
+            )}
+            {(c.dose_medicines?.length > 0 || c.medicines) && (
+              <div>
+                <span className="font-semibold text-[9px] uppercase text-amber-600 dark:text-amber-400">Prescription / Medicines:</span>
+                <p className="text-muted-foreground truncate font-medium">
+                  {c.dose_medicines && c.dose_medicines.length > 0 
+                    ? c.dose_medicines.map((m: any) => m.name).join(", ") 
+                    : c.medicines}
+                </p>
               </div>
             )}
           </div>
@@ -1076,14 +1086,11 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
       toast.error("Please enter medicine name (कृपया औषधाचे नाव प्रविष्ट करा)");
       return;
     }
-    if (!duration.trim()) {
-      toast.error("Please specify duration (कृपया कालावधी प्रविष्ट करा)");
-      return;
-    }
 
     setIsSubmittingMed(true);
     try {
       const cleanCode = doseCode.trim() || "101";
+      const cleanDuration = duration.trim() || "5 Days";
       let morning = "0 Tablet";
       let afternoon = "0 Tablet";
       let evening = "0 Tablet";
@@ -1106,13 +1113,13 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
       const newMed: DoseMedicine = {
         id: editingMedId || `med_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
         name: medName.trim(),
-        strength: medStrength.trim() || undefined,
+        strength: medStrength.trim() || "",
         dose_code: cleanCode,
         morning_dose: morning,
         afternoon_dose: afternoon,
         evening_dose: evening,
-        duration: duration.trim(),
-        instructions: instructions.trim() || undefined,
+        duration: cleanDuration,
+        instructions: instructions.trim() || "",
       };
 
       let updatedList: DoseMedicine[];
@@ -1124,17 +1131,14 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
       } else {
         updatedList = [...doseMedicines, newMed];
         setDoseMedicines(updatedList);
-        toast.success(`Added "${newMed.name}" (Code: ${doseCode})`);
+        toast.success(`Added "${newMed.name}" (${cleanCode})`);
       }
 
-      // Automatically sync formatted list into medicines box if doctor hasn't typed custom notes
+      // Automatically sync formatted list into medicines text
       const autoText = updatedList.map(m => 
         `• ${m.name}${m.strength ? ` ${m.strength}` : ''} [${m.dose_code}] (${m.morning_dose.replace(' Tablet','')}-${m.afternoon_dose.replace(' Tablet','')}-${m.evening_dose.replace(' Tablet','')}) × ${m.duration}${m.instructions ? ` (${m.instructions})` : ''}`
       ).join('\n');
-      
-      if (!medicines.trim() || medicines.includes("•")) {
-        setMedicines(autoText);
-      }
+      setMedicines(autoText);
 
       // Reset form to blank
       setMedName("");
@@ -1174,10 +1178,31 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
     const autoText = updated.map(m => 
       `• ${m.name}${m.strength ? ` ${m.strength}` : ''} [${m.dose_code}] (${m.morning_dose.replace(' Tablet','')}-${m.afternoon_dose.replace(' Tablet','')}-${m.evening_dose.replace(' Tablet','')}) × ${m.duration}${m.instructions ? ` (${m.instructions})` : ''}`
     ).join('\n');
-    if (!medicines.trim() || medicines.includes("•")) {
-      setMedicines(autoText);
-    }
+    setMedicines(autoText);
     toast.info("Medicine removed from prescription");
+  };
+
+  const handleConvertTextToMeds = () => {
+    if (!medicines.trim()) return;
+    const lines = medicines.split('\n').map(l => l.replace(/^[•\-\*]\s*/, '').trim()).filter(Boolean);
+    const converted: DoseMedicine[] = lines.map((line, idx) => ({
+      id: `med_text_${Date.now()}_${idx}`,
+      name: line,
+      strength: "",
+      dose_code: "101",
+      morning_dose: "1 Tablet",
+      afternoon_dose: "0 Tablet",
+      evening_dose: "1 Tablet",
+      duration: "5 Days",
+      instructions: "After food",
+    }));
+    const combined = [...doseMedicines, ...converted];
+    setDoseMedicines(combined);
+    const autoText = combined.map(m => 
+      `• ${m.name}${m.strength ? ` ${m.strength}` : ''} [${m.dose_code}] (${m.morning_dose.replace(' Tablet','')}-${m.afternoon_dose.replace(' Tablet','')}-${m.evening_dose.replace(' Tablet','')}) × ${m.duration}${m.instructions ? ` (${m.instructions})` : ''}`
+    ).join('\n');
+    setMedicines(autoText);
+    toast.success(`Converted ${converted.length} medicine(s) into table`);
   };
 
   const handleCancelEdit = () => {
@@ -1188,7 +1213,6 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
     setDuration("");
     setInstructions("");
   };
-
 
   const save = async (sendBack: boolean) => {
     setSaving(true);
@@ -1205,19 +1229,99 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
         gender: caseRow.gender || "",
       });
 
+      let currentDoseMeds = [...doseMedicines];
+
+      // Auto-commit if doctor typed medicine in the row but clicked "Save" directly without clicking "+ Add"
+      if (medName.trim()) {
+        const cleanCode = doseCode.trim() || "101";
+        const cleanDuration = duration.trim() || "5 Days";
+        let morning = "0 Tablet";
+        let afternoon = "0 Tablet";
+        let evening = "0 Tablet";
+
+        if (cleanCode.includes("-")) {
+          const parts = cleanCode.split("-");
+          morning = parts[0] && parts[0] !== "0" ? `${parts[0]} Tablet` : "0 Tablet";
+          afternoon = parts[1] && parts[1] !== "0" ? `${parts[1]} Tablet` : "0 Tablet";
+          evening = parts[2] && parts[2] !== "0" ? `${parts[2]} Tablet` : "0 Tablet";
+        } else if (cleanCode.length >= 3 && /^[0-9]+$/.test(cleanCode)) {
+          morning = cleanCode[0] !== "0" ? `${cleanCode[0]} Tablet` : "0 Tablet";
+          afternoon = cleanCode[1] !== "0" ? `${cleanCode[1]} Tablet` : "0 Tablet";
+          evening = cleanCode[2] !== "0" ? `${cleanCode[2]} Tablet` : "0 Tablet";
+        } else {
+          morning = cleanCode;
+          afternoon = "-";
+          evening = "-";
+        }
+
+        const autoNewMed: DoseMedicine = {
+          id: editingMedId || `med_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+          name: medName.trim(),
+          strength: medStrength.trim() || "",
+          dose_code: cleanCode,
+          morning_dose: morning,
+          afternoon_dose: afternoon,
+          evening_dose: evening,
+          duration: cleanDuration,
+          instructions: instructions.trim() || "",
+        };
+
+        if (editingMedId) {
+          currentDoseMeds = currentDoseMeds.map(m => m.id === editingMedId ? autoNewMed : m);
+        } else {
+          currentDoseMeds.push(autoNewMed);
+        }
+        setDoseMedicines(currentDoseMeds);
+        setMedName("");
+        setMedStrength("");
+        setDoseCode("");
+        setDuration("");
+        setInstructions("");
+      }
+
+      // If doseMedicines is empty but doctor typed medicines directly in case paper textarea, auto-convert them into medicine table!
+      if (currentDoseMeds.length === 0 && medicines.trim()) {
+        const lines = medicines.trim().split('\n').map(l => l.replace(/^[•\-\*]\s*/, '').trim()).filter(Boolean);
+        currentDoseMeds = lines.map((line, idx) => ({
+          id: `med_text_${Date.now()}_${idx}`,
+          name: line,
+          strength: "",
+          dose_code: "101",
+          morning_dose: "1 Tablet",
+          afternoon_dose: "0 Tablet",
+          evening_dose: "1 Tablet",
+          duration: "5 Days",
+          instructions: "After food",
+        }));
+        setDoseMedicines(currentDoseMeds);
+      }
+
+      // Sanitize dose_medicines to guarantee Firestore compatibility (no undefined fields)
+      const sanitizedDoseMedicines = currentDoseMeds.map(m => ({
+        id: m.id || `med_${Date.now()}`,
+        name: m.name || "",
+        strength: m.strength || "",
+        dose_code: m.dose_code || "101",
+        morning_dose: m.morning_dose || "1 Tablet",
+        afternoon_dose: m.afternoon_dose || "0 Tablet",
+        evening_dose: m.evening_dose || "1 Tablet",
+        duration: m.duration || "5 Days",
+        instructions: m.instructions || "",
+      }));
+
       // Prepare synced medicines text
-      const doseSummary = doseMedicines.map(m => 
+      const doseSummary = sanitizedDoseMedicines.map(m => 
         `• ${m.name}${m.strength ? ` ${m.strength}` : ''} [${m.dose_code}] (${m.morning_dose.replace(' Tablet','')}-${m.afternoon_dose.replace(' Tablet','')}-${m.evening_dose.replace(' Tablet','')}) × ${m.duration}${m.instructions ? ` (${m.instructions})` : ''}`
       ).join('\n');
 
-      const finalMedicinesText = medicines.trim() || doseSummary;
+      const finalMedicinesText = doseSummary || medicines.trim();
 
       await updateDoc(doc(db, "case_papers", caseRow.id), {
         notes: updatedNotesJson,
         medical_notes: medicalNotes.trim(),
         prescription: prescription.trim(),
         medicines: finalMedicinesText,
-        dose_medicines: doseMedicines,
+        dose_medicines: sanitizedDoseMedicines,
         tests: tests.trim(),
         consultation_charge: Number(consultationCharge || 0),
         medicine_charge: Number(medicineCharge || 0),
@@ -1514,82 +1618,113 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
                         <span className="font-serif font-bold text-base text-[#b45309]">Rx</span>
                         <span>Prescription & Medicines (औषधोपचार) :</span>
                       </span>
-                      {doseMedicines.length > 0 ? (
-                        <button
-                          type="button"
-                          onClick={() => setActiveCaseTab("dose_code")}
-                          className="text-[10px] bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold px-2 py-0.5 rounded border border-amber-300 transition-colors flex items-center gap-1 cursor-pointer"
-                        >
-                          <Pill className="h-3 w-3 text-amber-700" />
-                          <span>{doseMedicines.length} Medicines</span>
-                          <Edit2 className="h-2.5 w-2.5 ml-0.5 text-amber-700" />
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => setActiveCaseTab("dose_code")}
-                          className="text-[10px] bg-teal-50 hover:bg-teal-100 text-teal-800 font-semibold px-2 py-0.5 rounded border border-teal-300 transition-colors flex items-center gap-1 cursor-pointer"
-                        >
-                          <Plus className="h-2.5 w-2.5" />
-                          <span>Add Medicines (+ औषध जोडा)</span>
-                        </button>
-                      )}
+                      <div className="flex items-center gap-1.5">
+                        {doseMedicines.length > 0 ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => setActiveCaseTab("dose_code")}
+                              className="text-[10.5px] bg-teal-600 hover:bg-teal-700 text-white font-bold px-2 py-0.5 rounded shadow-xs transition-colors flex items-center gap-1 cursor-pointer"
+                            >
+                              <Plus className="h-3 w-3" />
+                              <span>Add More (+ औषध जोडा)</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setActiveCaseTab("dose_code")}
+                              className="text-[10px] bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold px-2 py-0.5 rounded border border-amber-300 transition-colors flex items-center gap-1 cursor-pointer"
+                            >
+                              <Pill className="h-3 w-3 text-amber-700" />
+                              <span>{doseMedicines.length} Medicines</span>
+                              <Edit2 className="h-2.5 w-2.5 ml-0.5 text-amber-700" />
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setActiveCaseTab("dose_code")}
+                            className="text-[11px] bg-teal-600 hover:bg-teal-700 text-white font-bold px-2.5 py-1 rounded shadow-xs transition-colors flex items-center gap-1 cursor-pointer"
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                            <span>Add Medicines (+ औषध जोडा)</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     {doseMedicines.length > 0 ? (
-                      <div className="rounded-lg border border-amber-300 bg-white overflow-hidden shadow-xs">
-                        {/* Clean, authentic medical prescription table spanning full width */}
-                        <table className="w-full text-[11.5px] text-left border-collapse font-sans">
-                          <thead>
-                            <tr className="bg-amber-100/70 border-b border-amber-200 text-black font-bold text-[11px]">
-                              <th className="py-1.5 px-3 w-8 text-center">#</th>
-                              <th className="py-1.5 px-3">औषध (Medicine)</th>
-                              <th className="py-1.5 px-2 text-center w-36">डोस (स-दु-रा)</th>
-                              <th className="py-1.5 px-3 text-center w-24">कालावधी</th>
-                              <th className="py-1.5 px-3">सूचना</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-amber-100/80">
-                            {doseMedicines.map((m, idx) => (
-                              <tr key={m.id || idx} className={idx % 2 === 1 ? "bg-amber-50/30" : "bg-white"}>
-                                <td className="py-1.5 px-3 text-center font-bold text-amber-800 text-[11px] align-middle">
-                                  {idx + 1}
-                                </td>
-                                <td className="py-1.5 px-3 font-serif font-bold text-black align-middle">
-                                  <div className="text-[12.5px]">{m.name}</div>
-                                  {m.strength && (
-                                    <span className="inline-block text-[9.5px] font-sans font-normal text-slate-600 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200 mt-0.5">
-                                      {m.strength}
-                                    </span>
-                                  )}
-                                </td>
-                                <td className="py-1.5 px-2 text-center align-middle whitespace-nowrap">
-                                  <span className="inline-block font-mono font-bold text-xs bg-amber-50 text-amber-950 px-2 py-0.5 rounded border border-amber-300">
-                                    {m.morning_dose.replace(' Tablet', '')} - {m.afternoon_dose.replace(' Tablet', '')} - {m.evening_dose.replace(' Tablet', '')}
-                                  </span>
-                                  <span className="text-[9.5px] text-slate-500 font-mono ml-1.5">[{m.dose_code}]</span>
-                                </td>
-                                <td className="py-1.5 px-3 text-center font-semibold text-slate-800 align-middle whitespace-nowrap">
-                                  {m.duration}
-                                </td>
-                                <td className="py-1.5 px-3 text-slate-700 italic text-[11px] font-serif align-middle">
-                                  {m.instructions || "—"}
-                                </td>
+                      <div className="space-y-1.5">
+                        <div className="rounded-lg border border-amber-300 bg-white overflow-hidden shadow-xs">
+                          {/* Clean, authentic medical prescription table spanning full width */}
+                          <table className="w-full text-[11.5px] text-left border-collapse font-sans">
+                            <thead>
+                              <tr className="bg-amber-100/70 border-b border-amber-200 text-black font-bold text-[11px]">
+                                <th className="py-1.5 px-3 w-8 text-center">#</th>
+                                <th className="py-1.5 px-3">औषध (Medicine)</th>
+                                <th className="py-1.5 px-2 text-center w-36">डोस (स-दु-रा)</th>
+                                <th className="py-1.5 px-3 text-center w-24">कालावधी</th>
+                                <th className="py-1.5 px-3">सूचना</th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                            </thead>
+                            <tbody className="divide-y divide-amber-100/80">
+                              {doseMedicines.map((m, idx) => (
+                                <tr key={m.id || idx} className={idx % 2 === 1 ? "bg-amber-50/30" : "bg-white"}>
+                                  <td className="py-1.5 px-3 text-center font-bold text-amber-800 text-[11px] align-middle">
+                                    {idx + 1}
+                                  </td>
+                                  <td className="py-1.5 px-3 font-serif font-bold text-black align-middle">
+                                    <div className="text-[12.5px]">{m.name}</div>
+                                    {m.strength && (
+                                      <span className="inline-block text-[9.5px] font-sans font-normal text-slate-600 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200 mt-0.5">
+                                        {m.strength}
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td className="py-1.5 px-2 text-center align-middle whitespace-nowrap">
+                                    <span className="inline-block font-mono font-bold text-xs bg-amber-50 text-amber-950 px-2 py-0.5 rounded border border-amber-300">
+                                      {m.morning_dose.replace(' Tablet', '')} - {m.afternoon_dose.replace(' Tablet', '')} - {m.evening_dose.replace(' Tablet', '')}
+                                    </span>
+                                    <span className="text-[9.5px] text-slate-500 font-mono ml-1.5">[{m.dose_code}]</span>
+                                  </td>
+                                  <td className="py-1.5 px-3 text-center font-semibold text-slate-800 align-middle whitespace-nowrap">
+                                    {m.duration}
+                                  </td>
+                                  <td className="py-1.5 px-3 text-slate-700 italic text-[11px] font-serif align-middle">
+                                    {m.instructions || "—"}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
                       </div>
                     ) : (
-                      <div className="relative">
-                        <Textarea
-                          rows={3}
-                          value={medicines}
-                          onChange={(e) => setMedicines(e.target.value)}
-                          placeholder="Type medicines or click 'Medicine Dose Code' tab above..."
-                          className="w-full text-xs font-serif p-2.5 rounded-lg border border-amber-300/80 bg-white text-black pr-8 resize-none min-h-[70px]"
-                        />
-                        <VoiceButton onTranscript={(val) => setMedicines((prev: string) => prev ? prev + "\n" + val : val)} positionClassName="top-2.5 right-2" />
+                      <div className="space-y-1.5">
+                        <div className="relative">
+                          <Textarea
+                            rows={3}
+                            value={medicines}
+                            onChange={(e) => setMedicines(e.target.value)}
+                            placeholder="औषधांची नावे टाइप करा किंवा वरील '+ Add Medicines' वर क्लिक करा..."
+                            className="w-full text-xs font-serif p-2.5 rounded-lg border border-amber-300/80 bg-white text-black pr-8 resize-none min-h-[70px]"
+                          />
+                          <VoiceButton onTranscript={(val) => setMedicines((prev: string) => prev ? prev + "\n" + val : val)} positionClassName="top-2.5 right-2" />
+                        </div>
+                        {medicines.trim() && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] text-slate-500 font-sans">
+                              औषध टाइप केले आहे:
+                            </span>
+                            <button
+                              type="button"
+                              onClick={handleConvertTextToMeds}
+                              className="text-[11px] font-bold text-teal-800 bg-teal-50 hover:bg-teal-100 border border-teal-300 px-2.5 py-1 rounded-md flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                            >
+                              <Sparkles className="h-3 w-3 text-teal-600" />
+                              <span>तक्त्यात रूपांतर करा (Convert to Medicine Table)</span>
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
