@@ -20,7 +20,7 @@ import {
   Search, Send, Receipt, Download, Users, ClipboardList, CheckCircle2, 
   Plus, Loader2, FileText, Menu, X, ArrowUpDown, Phone, User, MapPin, 
   Calendar, Stethoscope, TrendingUp, AlertCircle, Clock, Activity, History, Trash2,
-  Layers, MessageSquare, Edit3, Printer, ZoomIn, Pill
+  Layers, MessageSquare, Edit3, Printer, ZoomIn, Pill, ArrowLeft
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { VoiceButton } from "@/components/VoiceButton";
@@ -1090,6 +1090,30 @@ function NurseClinicalEditDialog({
   const [testCharge, setTestCharge] = useState(Number(caseRow.test_charge ?? 0));
   const [otherCharge, setOtherCharge] = useState(Number(caseRow.other_charge ?? 0));
 
+  const isClosingViaBackRef = useRef(false);
+
+  // Manage browser history so back button closes modal instead of bouncing to landing page
+  useEffect(() => {
+    if (!open) return;
+
+    window.history.pushState({ modal: "nurse_case_paper", caseId: caseRow.id }, "");
+
+    const onPopState = () => {
+      isClosingViaBackRef.current = true;
+      setOpen(false);
+    };
+
+    window.addEventListener("popstate", onPopState);
+
+    return () => {
+      window.removeEventListener("popstate", onPopState);
+      if (!isClosingViaBackRef.current && window.history.state?.modal === "nurse_case_paper") {
+        window.history.back();
+      }
+      isClosingViaBackRef.current = false;
+    };
+  }, [open, caseRow.id]);
+
   useEffect(() => {
     if (open) {
       setNotes(caseRow.notes || "");
@@ -1188,14 +1212,27 @@ function NurseClinicalEditDialog({
       <DialogContent className="max-w-4xl w-[96vw] max-h-[92vh] overflow-y-auto rounded-3xl p-4 sm:p-6 bg-slate-100/90 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:border-white/10 shadow-2xl">
         {/* Top Header & Actions Bar */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/60 dark:border-white/10">
-          <div>
-            <DialogTitle className="text-lg sm:text-xl font-bold flex items-center gap-2 text-slate-800 dark:text-white">
-              <span className="w-3 h-3 rounded-full bg-[#fbbd08]"></span>
-              Electronic Case Paper — Moolatvam Ayurved
-            </DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-              Patient: <span className="font-bold text-foreground uppercase">{caseRow.full_name}</span> | Visit Date: {new Date(caseRow.created_at).toLocaleDateString("en-IN")}
-            </DialogDescription>
+          <div className="flex items-center gap-2.5">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setOpen(false)}
+              className="rounded-xl h-9 px-3 text-xs gap-1.5 font-bold border-teal-500/40 bg-teal-50/60 hover:bg-teal-100 text-teal-900 dark:text-teal-200 dark:bg-teal-950/60 cursor-pointer shadow-xs transition-colors shrink-0"
+              title="Close & Back to Dashboard (डॅशबोर्डकडे मागे)"
+            >
+              <ArrowLeft className="h-4 w-4 text-teal-600 dark:text-teal-400" />
+              <span>Back (डॅशबोर्ड)</span>
+            </Button>
+            <div>
+              <DialogTitle className="text-lg sm:text-xl font-bold flex items-center gap-2 text-slate-800 dark:text-white">
+                <span className="w-3 h-3 rounded-full bg-[#fbbd08]"></span>
+                Electronic Case Paper — Moolatvam Ayurved
+              </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                Patient: <span className="font-bold text-foreground uppercase">{caseRow.full_name}</span> | Visit Date: {new Date(caseRow.created_at).toLocaleDateString("en-IN")}
+              </DialogDescription>
+            </div>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-end">
