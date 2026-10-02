@@ -150,6 +150,7 @@ function DoctorPage() {
   const [activeTab, setActiveTab] = useState<"all" | "pending" | "reviewing" | "completed">("all");
   const [sortBy, setSortBy] = useState<"newest" | "oldest" | "name">("newest");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [selectedCaseForEdit, setSelectedCaseForEdit] = useState<any | null>(null);
 
   // Fetch all doctors strictly from Firestore
   useEffect(() => {
@@ -302,6 +303,12 @@ function DoctorPage() {
       return false;
     });
   }, [allCases, selectedDoctorId, activeDoctor]);
+
+  // Keep active case editor synchronized with live Firestore updates
+  const currentEditingCase = useMemo(() => {
+    if (!selectedCaseForEdit) return null;
+    return allCases.find(c => c.id === selectedCaseForEdit.id) || selectedCaseForEdit;
+  }, [allCases, selectedCaseForEdit]);
 
   // Sidebar Counts for the active doctor
   const counts = useMemo(() => {
@@ -750,6 +757,7 @@ function DoctorPage() {
                                 onSaved={() => {}} 
                                 meta={activeDoctor}
                                 onDelete={deleteCase}
+                                onOpenCase={(caseItem) => setSelectedCaseForEdit(caseItem)}
                               />
                             </AnimatedWrapper>
                           );
@@ -764,6 +772,21 @@ function DoctorPage() {
 
         </div>
       </div>
+
+      {/* Global Doctor Case Editor Modal - opens instantly in 1 click */}
+      {currentEditingCase && (
+        <CaseEditor 
+          caseRow={currentEditingCase}
+          open={true}
+          onOpenChange={(isOpen) => {
+            if (!isOpen) setSelectedCaseForEdit(null);
+          }}
+          onSaved={() => {
+            setSelectedCaseForEdit(null);
+          }}
+          trigger={null}
+        />
+      )}
     </div>
   );
 }
@@ -826,7 +849,7 @@ function StatCard({ label, value, icon: Icon, color, pulse = false }: { label: s
   );
 }
 
-function PatientCaseCard({ c, onAccept, onSaved, meta, onDelete }: { c: any; onAccept: () => void; onSaved: () => void; meta: any; onDelete?: (c: any) => void }) {
+function PatientCaseCard({ c, onAccept, onSaved, meta, onDelete, onOpenCase }: { c: any; onAccept: () => void; onSaved: () => void; meta: any; onDelete?: (c: any) => void; onOpenCase: (c: any) => void }) {
   const initials = c.full_name ? c.full_name.split(" ").map((n: string) => n[0]).join("").substring(0, 2).toUpperCase() : "PT";
 
   const isPending = c.status === "sent_to_doctor";
@@ -898,19 +921,28 @@ function PatientCaseCard({ c, onAccept, onSaved, meta, onDelete }: { c: any; onA
           </div>
         </div>
 
-        {/* Action Button Area */}
+        {/* Action Button Area - 1 Click Case Paper Open */}
         <div className="mt-auto pt-1 flex flex-wrap gap-2">
-          {isPending && (
+          {isPending ? (
             <Button 
               size="sm" 
-              onClick={onAccept}
-              className="w-full rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-700 hover:to-amber-600 text-white flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/10 animate-pulse border-0 h-9"
+              onClick={() => {
+                onAccept();
+                onOpenCase(c);
+              }}
+              className="w-full rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-700 hover:to-amber-600 text-white flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/10 animate-pulse border-0 h-9 font-semibold cursor-pointer"
             >
-              <Stethoscope className="h-4 w-4" /> Start Consultation
+              <Stethoscope className="h-4 w-4" /> Start Consultation (सल्ला सुरू करा)
             </Button>
-          )}
-          {!isPending && (
-            <CaseEditor caseRow={c} onSaved={onSaved} />
+          ) : (
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={() => onOpenCase(c)}
+              className="w-full rounded-xl flex items-center justify-center gap-1.5 h-9 font-semibold hover:bg-teal-50 dark:hover:bg-teal-950/40 text-teal-800 dark:text-teal-200 border-teal-300 dark:border-teal-700 transition-colors bg-background cursor-pointer"
+            >
+              <FileText className="h-4 w-4 text-teal-600" /> Open Clinical Record (केस पेपर पहा)
+            </Button>
           )}
         </div>
 
@@ -919,8 +951,29 @@ function PatientCaseCard({ c, onAccept, onSaved, meta, onDelete }: { c: any; onA
   );
 }
 
-function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void }) {
-  const [open, setOpen] = useState(false);
+function CaseEditor({ 
+  caseRow, 
+  onSaved, 
+  open: controlledOpen, 
+  onOpenChange: controlledOnOpenChange, 
+  trigger 
+}: { 
+  caseRow: any; 
+  onSaved: () => void; 
+  open?: boolean; 
+  onOpenChange?: (open: boolean) => void; 
+  trigger?: React.ReactNode; 
+}) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+  const setOpen = (val: boolean) => {
+    if (isControlled) {
+      controlledOnOpenChange?.(val);
+    } else {
+      setInternalOpen(val);
+    }
+  };
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [activeCaseTab, setActiveCaseTab] = useState<"case_paper" | "dose_code">("case_paper");
@@ -1321,11 +1374,17 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm" variant="outline" className="w-full rounded-xl flex items-center justify-center gap-1.5 h-9 font-medium hover:bg-primary/5 hover:text-primary transition-colors border-slate-200 dark:border-white/10 bg-background">
-          <FileText className="h-4 w-4 text-muted-foreground" /> Open clinical record
-        </Button>
-      </DialogTrigger>
+      {trigger !== null && (
+        <DialogTrigger asChild>
+          {trigger ? (
+            trigger
+          ) : (
+            <Button size="sm" variant="outline" className="w-full rounded-xl flex items-center justify-center gap-1.5 h-9 font-medium hover:bg-primary/5 hover:text-primary transition-colors border-slate-200 dark:border-white/10 bg-background">
+              <FileText className="h-4 w-4 text-muted-foreground" /> Open clinical record
+            </Button>
+          )}
+        </DialogTrigger>
+      )}
       
       <DialogContent className="max-w-6xl w-[96vw] max-h-[92vh] overflow-y-auto overflow-x-hidden rounded-2xl sm:rounded-3xl p-3 sm:p-6 bg-slate-100/90 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:border-white/10 shadow-2xl">
         
