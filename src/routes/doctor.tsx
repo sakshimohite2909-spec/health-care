@@ -1700,15 +1700,6 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
                               <Plus className="h-3 w-3" />
                               <span>Add More (+ औषध जोडा)</span>
                             </button>
-                            <button
-                              type="button"
-                              onClick={() => switchTab("dose_code")}
-                              className="text-[10px] bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold px-2 py-0.5 rounded border border-amber-300 transition-colors flex items-center gap-1 cursor-pointer"
-                            >
-                              <Pill className="h-3 w-3 text-amber-700" />
-                              <span>{doseMedicines.length} Medicines</span>
-                              <Edit2 className="h-2.5 w-2.5 ml-0.5 text-amber-700" />
-                            </button>
                           </>
                         ) : (
                           <button
