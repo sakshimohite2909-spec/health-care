@@ -495,6 +495,25 @@ function PatientPage() {
   const age = useMemo(() => calculateAge(form.dob), [form.dob]);
 
   useEffect(() => {
+    // Ensure form is completely blank whenever user opens the page
+    setForm({
+      full_name: "",
+      address: "",
+      mobile: "",
+      dob: "",
+      notes: "",
+      marital_status: "",
+      education: "",
+      occupation: "",
+      parents_occupation: "",
+      menstrual_history: "",
+      past_history: "",
+      weight: "",
+      gender: "",
+    });
+  }, []);
+
+  useEffect(() => {
     const checkAndAutoLogin = async () => {
       if (loading) return;
       if (user) {
@@ -703,45 +722,7 @@ function PatientPage() {
             </div>
           </div>
         </div>
-
-        {/* Live Patient Profile Header Banner */}
-        <div className="mt-4 bg-gradient-to-r from-teal-500/10 via-indigo-500/5 to-slate-500/10 rounded-2xl p-4 border border-teal-500/20 shadow-xs">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-teal-500 to-indigo-500 text-white font-extrabold text-sm flex items-center justify-center shadow-md shadow-teal-500/20 shrink-0">
-                {(form.full_name?.trim() ? form.full_name.trim().substring(0, 2) : "??").toUpperCase()}
-              </div>
-              <div className="min-w-0">
-                <span className="text-[10px] text-teal-600 dark:text-teal-400 uppercase font-extrabold tracking-wider block">
-                  Patient Profile
-                </span>
-                <h3 className="font-extrabold text-base text-foreground tracking-tight uppercase leading-none mt-0.5 truncate">
-                  {form.full_name?.trim() || "नवीन रुग्ण (Patient Name)"}
-                </h3>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2 text-xs">
-              <div className="flex items-center gap-1.5 bg-white/70 dark:bg-black/30 px-2.5 py-1 rounded-xl border border-slate-200/60 dark:border-white/5 shadow-2xs">
-                <Calendar className="h-3.5 w-3.5 text-teal-500 shrink-0" />
-                <div>
-                  <div className="text-[8px] text-muted-foreground uppercase leading-none font-semibold">Age / DOB</div>
-                  <div className="font-bold text-foreground text-[11px] mt-0.5">
-                    {age} Years {form.dob ? `(${form.dob})` : ""}
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center gap-1.5 bg-white/70 dark:bg-black/30 px-2.5 py-1 rounded-xl border border-slate-200/60 dark:border-white/5 shadow-2xs">
-                <Phone className="h-3.5 w-3.5 text-teal-500 shrink-0" />
-                <div>
-                  <div className="text-[8px] text-muted-foreground uppercase leading-none font-semibold">Contact</div>
-                  <div className="font-bold text-foreground text-[11px] mt-0.5">{form.mobile || "—"}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <form onSubmit={submit} className="space-y-6 mt-5">
+        <form onSubmit={submit} className="space-y-6 mt-6" autoComplete="off">
           {/* Section 1: Personal Details */}
           <div className="space-y-3">
             <div className="flex items-center gap-2 border-b border-slate-200/60 dark:border-white/10 pb-1.5">
@@ -916,18 +897,10 @@ function PatientPage() {
             </div>
           </div>
 
-          <div className="pt-4 border-t border-slate-200/60 dark:border-white/10 flex flex-col-reverse sm:flex-row justify-end gap-3">
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={() => navigate({ to: "/" })} 
-              className="rounded-xl text-xs sm:text-sm h-11 px-5 font-semibold"
-            >
-              रद्द करा / मुख्य पान (Cancel)
-            </Button>
+          <div className="pt-4 border-t border-slate-200/60 dark:border-white/10 flex justify-end">
             <Button 
               type="submit" 
-              className="rounded-xl text-xs sm:text-sm h-11 px-6 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-bold shadow-md hover:shadow-lg transition-all" 
+              className="w-full sm:w-auto rounded-xl text-xs sm:text-sm h-11 px-8 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-bold shadow-md hover:shadow-lg transition-all" 
               disabled={busy}
             >
               {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
