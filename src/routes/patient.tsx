@@ -733,7 +733,7 @@ function PatientPage() {
             </Button>
           </DialogTrigger>
 
-          <DialogContent className="max-w-3xl w-[95vw] max-h-[92vh] overflow-y-auto rounded-3xl p-5 sm:p-7 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:border-white/10 shadow-2xl">
+          <DialogContent className="max-w-3xl w-[96vw] max-h-[92vh] overflow-y-auto rounded-2xl sm:rounded-3xl p-3.5 sm:p-7 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:border-white/10 shadow-2xl">
              <DialogHeader className="border-b dark:border-white/5 pb-4">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-2xl bg-teal-500/15 text-teal-600 dark:text-teal-400 grid place-items-center">

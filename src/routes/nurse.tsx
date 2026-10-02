@@ -486,7 +486,7 @@ function NursePage() {
                  <Plus className="h-4 w-4" /> New Case Paper
                </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-3xl w-[95vw] max-h-[92vh] overflow-y-auto rounded-3xl p-5 sm:p-7 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:border-white/10 shadow-2xl">
+            <DialogContent className="max-w-3xl w-[96vw] max-h-[92vh] overflow-y-auto rounded-2xl sm:rounded-3xl p-3.5 sm:p-7 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:border-white/10 shadow-2xl">
                <DialogHeader className="border-b dark:border-white/5 pb-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-2xl bg-amber-500/15 text-amber-600 dark:text-amber-400 grid place-items-center">
@@ -825,7 +825,7 @@ function NursePage() {
         />
       )}
 
-      <div className="flex-1 p-6 md:p-8 min-w-0">
+      <div className="flex-1 p-3 sm:p-6 md:p-8 min-w-0">
         <div className="max-w-7xl mx-auto w-full space-y-6">
           <div className="md:hidden flex items-center justify-between p-3 glass rounded-2xl mb-4 border dark:border-white/5">
             <div className="flex items-center gap-2">
@@ -1209,7 +1209,7 @@ function NurseClinicalEditDialog({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-4xl w-[96vw] max-h-[92vh] overflow-y-auto rounded-3xl p-4 sm:p-6 bg-slate-100/90 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:border-white/10 shadow-2xl">
+      <DialogContent className="max-w-4xl w-[96vw] max-h-[92vh] overflow-y-auto rounded-2xl sm:rounded-3xl p-3 sm:p-6 bg-slate-100/90 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:border-white/10 shadow-2xl">
         {/* Top Header & Actions Bar */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/60 dark:border-white/10">
           <div className="flex items-center gap-2.5">
@@ -1218,31 +1218,31 @@ function NurseClinicalEditDialog({
               variant="outline"
               size="sm"
               onClick={() => setOpen(false)}
-              className="rounded-xl h-9 px-3 text-xs gap-1.5 font-bold border-teal-500/40 bg-teal-50/60 hover:bg-teal-100 text-teal-900 dark:text-teal-200 dark:bg-teal-950/60 cursor-pointer shadow-xs transition-colors shrink-0"
+              className="rounded-xl h-8 sm:h-9 px-2.5 sm:px-3 text-xs gap-1 sm:gap-1.5 font-bold border-teal-500/40 bg-teal-50/60 hover:bg-teal-100 text-teal-900 dark:text-teal-200 dark:bg-teal-950/60 cursor-pointer shadow-xs transition-colors shrink-0"
               title="Close & Back to Dashboard (डॅशबोर्डकडे मागे)"
             >
-              <ArrowLeft className="h-4 w-4 text-teal-600 dark:text-teal-400" />
+              <ArrowLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400" />
               <span>Back (डॅशबोर्ड)</span>
             </Button>
             <div>
-              <DialogTitle className="text-lg sm:text-xl font-bold flex items-center gap-2 text-slate-800 dark:text-white">
-                <span className="w-3 h-3 rounded-full bg-[#fbbd08]"></span>
-                Electronic Case Paper — Moolatvam Ayurved
+              <DialogTitle className="text-base sm:text-xl font-bold flex items-center gap-2 text-slate-800 dark:text-white">
+                <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#fbbd08] shrink-0"></span>
+                <span className="truncate">Electronic Case Paper</span>
               </DialogTitle>
-              <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                Patient: <span className="font-bold text-foreground uppercase">{caseRow.full_name}</span> | Visit Date: {new Date(caseRow.created_at).toLocaleDateString("en-IN")}
+              <DialogDescription className="text-[11px] sm:text-xs text-muted-foreground mt-0.5 truncate max-w-[280px] sm:max-w-none">
+                Patient: <span className="font-bold text-foreground uppercase">{caseRow.full_name}</span> | Visit: {new Date(caseRow.created_at).toLocaleDateString("en-IN")}
               </DialogDescription>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-end">
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap w-full sm:w-auto justify-end pr-8 sm:pr-0">
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={handleDownloadPDF}
               disabled={downloading}
-              className="rounded-xl h-9 text-xs gap-1.5 border-amber-500/50 text-amber-800 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 font-semibold"
+              className="rounded-xl h-8 sm:h-9 text-[11px] sm:text-xs gap-1 sm:gap-1.5 border-amber-500/50 text-amber-800 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 font-semibold"
             >
               {downloading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5 text-amber-600" />}
               PDF Download
@@ -1253,7 +1253,7 @@ function NurseClinicalEditDialog({
               variant="outline"
               size="sm"
               onClick={() => window.print()}
-              className="rounded-xl h-9 text-xs gap-1.5 font-semibold"
+              className="rounded-xl h-8 sm:h-9 text-[11px] sm:text-xs gap-1 sm:gap-1.5 font-semibold"
             >
               <Printer className="h-3.5 w-3.5" /> Print
             </Button>
@@ -1263,7 +1263,7 @@ function NurseClinicalEditDialog({
               size="sm"
               onClick={() => handleSave(false)}
               disabled={saving}
-              className="rounded-xl h-9 bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold shadow-sm"
+              className="rounded-xl h-8 sm:h-9 bg-teal-600 hover:bg-teal-700 text-white text-[11px] sm:text-xs font-semibold shadow-sm"
             >
               {saving && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />} Save Details (जतन करा)
             </Button>
@@ -1274,7 +1274,7 @@ function NurseClinicalEditDialog({
                 size="sm"
                 onClick={() => handleSave(true)}
                 disabled={saving}
-                className="rounded-xl h-9 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white font-semibold text-xs shadow-md"
+                className="rounded-xl h-8 sm:h-9 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white font-semibold text-[11px] sm:text-xs shadow-md"
               >
                 {saving ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Send className="mr-1.5 h-3.5 w-3.5" />}
                 Save & Send to Doctor
@@ -1284,9 +1284,19 @@ function NurseClinicalEditDialog({
         </div>
 
         {/* The Exact A4 Case Paper Layout Container matching Image 3 */}
-        <div className="w-full overflow-x-auto p-2 sm:p-4 flex justify-start lg:justify-center custom-scrollbar">
-          <div
-            id={`case-paper-${caseRow.id}`}
+        <div className="w-full flex flex-col items-center">
+          {/* Mobile Horizontal Scroll Hint */}
+          <div className="lg:hidden flex items-center justify-between w-full max-w-[794px] bg-amber-50 dark:bg-amber-950/40 border border-amber-300/60 dark:border-amber-800/40 px-3 py-1.5 rounded-xl text-[11px] text-amber-900 dark:text-amber-200 font-medium mb-2 shrink-0 shadow-2xs">
+            <span className="flex items-center gap-1.5">
+              <span>📱</span>
+              <span>मोबाईलवर डावीकडे व उजवीकडे स्क्रोल करून पूर्ण केस पेपर पाहू शकता</span>
+            </span>
+            <span className="text-[10px] bg-amber-200/70 dark:bg-amber-900/60 px-1.5 py-0.5 rounded font-bold shrink-0">A4 Sheet</span>
+          </div>
+
+          <div className="w-full overflow-x-auto p-1 sm:p-4 flex justify-start lg:justify-center custom-scrollbar touch-pan-x">
+            <div
+              id={`case-paper-${caseRow.id}`}
             className="bg-white relative flex flex-col overflow-hidden text-black font-serif shadow-xl border border-slate-200 shrink-0 w-[794px] min-w-[794px] min-h-[1123px] rounded-sm"
           >
             {/* Top Header Background SVG */}
@@ -1593,6 +1603,7 @@ function NurseClinicalEditDialog({
             </div>
           </div>
         </div>
+      </div>
 
         {/* Nurse Direct Billing Charges Breakdown Card */}
         <div className="bg-slate-50/90 dark:bg-black/25 p-5 rounded-2xl border border-slate-200/80 dark:border-white/10 space-y-4 my-4 max-w-[800px] mx-auto w-full shadow-sm">

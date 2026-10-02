@@ -540,7 +540,7 @@ function DoctorPage() {
       )}
 
       {/* 2. Main Content Column */}
-      <div className="flex-1 p-6 md:p-8 min-w-0">
+      <div className="flex-1 p-3 sm:p-6 md:p-8 min-w-0">
         <div className="max-w-7xl mx-auto w-full space-y-6">
           
           {/* Mobile Sidebar Trigger / Top stats display helper */}
@@ -1420,7 +1420,7 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
         </Button>
       </DialogTrigger>
       
-      <DialogContent className="max-w-6xl w-[96vw] max-h-[92vh] overflow-y-auto overflow-x-hidden rounded-3xl p-4 sm:p-6 bg-slate-100/90 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:border-white/10 shadow-2xl">
+      <DialogContent className="max-w-6xl w-[96vw] max-h-[92vh] overflow-y-auto overflow-x-hidden rounded-2xl sm:rounded-3xl p-3 sm:p-6 bg-slate-100/90 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:border-white/10 shadow-2xl">
         
         {/* Top Header & Actions Bar */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/60 dark:border-white/10">
@@ -1430,31 +1430,31 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
               variant="outline"
               size="sm"
               onClick={handleGoBack}
-              className="rounded-xl h-9 px-3 text-xs gap-1.5 font-bold border-teal-500/40 bg-teal-50/60 hover:bg-teal-100 text-teal-900 dark:text-teal-200 dark:bg-teal-950/60 cursor-pointer shadow-xs transition-colors shrink-0"
+              className="rounded-xl h-8 sm:h-9 px-2.5 sm:px-3 text-xs gap-1 sm:gap-1.5 font-bold border-teal-500/40 bg-teal-50/60 hover:bg-teal-100 text-teal-900 dark:text-teal-200 dark:bg-teal-950/60 cursor-pointer shadow-xs transition-colors shrink-0"
               title={activeCaseTab === "dose_code" ? "Back to Case Paper (केस पेपरकडे मागे)" : "Close & Back to Dashboard (डॅशबोर्डकडे मागे)"}
             >
-              <ArrowLeft className="h-4 w-4 text-teal-600 dark:text-teal-400" />
+              <ArrowLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-teal-600 dark:text-teal-400" />
               <span>{activeCaseTab === "dose_code" ? "Back (मागे)" : "Back (डॅशबोर्ड)"}</span>
             </Button>
             <div>
-              <DialogTitle className="text-lg sm:text-xl font-bold flex items-center gap-2 text-slate-800 dark:text-white">
-                <span className="w-3 h-3 rounded-full bg-[#fbbd08]"></span>
-                Electronic Case Paper — Moolatvam Ayurved
+              <DialogTitle className="text-base sm:text-xl font-bold flex items-center gap-2 text-slate-800 dark:text-white">
+                <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#fbbd08] shrink-0"></span>
+                <span className="truncate">Electronic Case Paper</span>
               </DialogTitle>
-              <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                Patient: <span className="font-bold text-foreground uppercase">{caseRow.full_name}</span> | Case Paper #{caseRow.id.substring(0,8).toUpperCase()}
+              <DialogDescription className="text-[11px] sm:text-xs text-muted-foreground mt-0.5 truncate max-w-[280px] sm:max-w-none">
+                Patient: <span className="font-bold text-foreground uppercase">{caseRow.full_name}</span> | #{caseRow.id.substring(0,8).toUpperCase()}
               </DialogDescription>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-end">
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap w-full sm:w-auto justify-end pr-8 sm:pr-0">
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={handleDownloadPDF}
               disabled={downloading}
-              className="rounded-xl h-9 text-xs gap-1.5 border-amber-500/50 text-amber-800 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 font-semibold"
+              className="rounded-xl h-8 sm:h-9 text-[11px] sm:text-xs gap-1 sm:gap-1.5 border-amber-500/50 text-amber-800 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 font-semibold"
             >
               {downloading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5 text-amber-600" />}
               PDF Download
@@ -1465,7 +1465,7 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
               variant="outline"
               size="sm"
               onClick={() => window.print()}
-              className="rounded-xl h-9 text-xs gap-1.5 font-semibold"
+              className="rounded-xl h-8 sm:h-9 text-[11px] sm:text-xs gap-1 sm:gap-1.5 font-semibold"
             >
               <Printer className="h-3.5 w-3.5" /> Print
             </Button>
@@ -1473,19 +1473,9 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
             <Button
               type="button"
               size="sm"
-              onClick={() => save(false)}
-              disabled={saving}
-              className="rounded-xl h-9 bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold shadow-sm"
-            >
-              {saving && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />} Save Record (जतन करा)
-            </Button>
-
-            <Button
-              type="button"
-              size="sm"
               onClick={() => save(true)}
               disabled={saving}
-              className="rounded-xl h-9 bg-gradient-to-r from-teal-500 to-indigo-600 hover:from-teal-600 hover:to-indigo-700 text-white font-semibold text-xs shadow-md"
+              className="rounded-xl h-8 sm:h-9 px-3 bg-gradient-to-r from-teal-500 to-indigo-600 hover:from-teal-600 hover:to-indigo-700 text-white font-bold text-[11px] sm:text-xs shadow-md shrink-0 cursor-pointer"
             >
               {saving ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Send className="mr-1.5 h-3.5 w-3.5" />}
               Save & Send to Nurse
@@ -1529,9 +1519,19 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
 
         {/* TAB 1: Authentic A4 Case Paper View */}
         {activeCaseTab === "case_paper" && (
-          <div className="w-full overflow-x-auto p-2 sm:p-4 flex justify-start lg:justify-center custom-scrollbar">
-            <div
-              id={`case-paper-${caseRow.id}`}
+          <div className="w-full flex flex-col items-center">
+            {/* Mobile Horizontal Scroll Hint */}
+            <div className="lg:hidden flex items-center justify-between w-full max-w-[794px] bg-amber-50 dark:bg-amber-950/40 border border-amber-300/60 dark:border-amber-800/40 px-3 py-1.5 rounded-xl text-[11px] text-amber-900 dark:text-amber-200 font-medium mb-2 shrink-0 shadow-2xs">
+              <span className="flex items-center gap-1.5">
+                <span>📱</span>
+                <span>मोबाईलवर डावीकडे व उजवीकडे स्क्रोल करून पूर्ण केस पेपर पाहू शकता</span>
+              </span>
+              <span className="text-[10px] bg-amber-200/70 dark:bg-amber-900/60 px-1.5 py-0.5 rounded font-bold shrink-0">A4 Sheet</span>
+            </div>
+
+            <div className="w-full overflow-x-auto p-1 sm:p-4 flex justify-start lg:justify-center custom-scrollbar touch-pan-x">
+              <div
+                id={`case-paper-${caseRow.id}`}
               className="bg-white relative flex flex-col overflow-hidden text-black font-serif shadow-xl border border-slate-200 shrink-0 w-[794px] min-w-[794px] min-h-[1123px] rounded-sm"
             >
               {/* Top Header Background SVG */}
@@ -1870,6 +1870,7 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
               </div>
             </div>
           </div>
+        </div>
         )}
 
         {/* TAB 2: Medicine Dose Code Tab */}
@@ -1927,8 +1928,8 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
                 </div>
               </div>
 
-              {/* Prescription Pad Table - 100% Fixed Width */}
-              <div className="w-full overflow-hidden">
+              {/* Prescription Pad Table - Desktop View */}
+              <div className="w-full overflow-x-auto hidden md:block">
                 <table className="w-full text-left border-collapse table-fixed">
                   <thead>
                     <tr className="bg-slate-50 dark:bg-slate-800/70 border-b border-slate-200 dark:border-white/10 text-[11px] sm:text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
@@ -2378,18 +2379,401 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
                   </tbody>
                 </table>
               </div>
+
+              {/* Prescription Pad - Mobile Cards View */}
+              <div className="block md:hidden p-3 space-y-4">
+                {/* 1. Confirmed Medicines List */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between px-1">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                      जोडलेली औषधे (Added Medicines)
+                    </span>
+                    <Badge variant="outline" className="text-[10px] font-bold">
+                      {doseMedicines.length} औषधे
+                    </Badge>
+                  </div>
+
+                  {doseMedicines.length === 0 ? (
+                    <div className="text-center py-6 px-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700">
+                      <Pill className="h-7 w-7 mx-auto text-slate-400 mb-1.5" />
+                      <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">अद्याप कोणतीही औषधे जोडलेली नाहीत</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">खालील फॉर्म वापरून औषध जोडा</p>
+                    </div>
+                  ) : (
+                    doseMedicines.map((med, index) => (
+                      <div 
+                        key={med.id} 
+                        className={`p-3.5 rounded-2xl border transition-all ${
+                          editingMedId === med.id 
+                            ? "bg-amber-500/10 border-amber-500/40 shadow-sm" 
+                            : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/10 shadow-2xs"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-teal-600/10 text-teal-700 dark:text-teal-400 font-bold text-xs shrink-0">
+                              {index + 1}
+                            </span>
+                            <div>
+                              <h4 className="font-bold text-sm text-foreground">{med.name}</h4>
+                              {med.strength && (
+                                <span className="inline-block mt-0.5 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium text-[10px]">
+                                  {med.strength}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEditMedicine(med)}
+                              className="h-8 w-8 p-0 text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-950/50 rounded-lg cursor-pointer"
+                              title="Edit"
+                            >
+                              <Edit2 className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteMedicine(med.id)}
+                              className="h-8 w-8 p-0 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg cursor-pointer"
+                              title="Delete"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-white/5 flex flex-wrap items-center gap-1.5 text-xs">
+                          <span className="font-mono font-bold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/60 px-2 py-0.5 rounded border border-teal-500/20 text-xs">
+                            [{med.dose_code}]
+                          </span>
+                          <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                            {DOSE_CODES[med.dose_code]?.summary || (med.afternoon_dose === "-" ? med.morning_dose : `${med.morning_dose.replace(' Tablet','')}-${med.afternoon_dose.replace(' Tablet','')}-${med.evening_dose.replace(' Tablet','')}`)}
+                          </span>
+                          <span className="ml-auto inline-block px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-foreground font-semibold text-[11px]">
+                            ⏳ {med.duration}
+                          </span>
+                        </div>
+
+                        {med.afternoon_dose !== "-" && (
+                          <div className="flex items-center gap-2 mt-2 text-[10px] text-muted-foreground bg-slate-50 dark:bg-slate-800/40 px-2.5 py-1 rounded-lg">
+                            <span className={med.morning_dose !== "0 Tablet" ? "text-amber-600 dark:text-amber-400 font-bold" : "opacity-40"}>
+                              🌅 सकाळ: {med.morning_dose.replace(' Tablet','')}
+                            </span>
+                            •
+                            <span className={med.afternoon_dose !== "0 Tablet" ? "text-orange-600 dark:text-orange-400 font-bold" : "opacity-40"}>
+                              ☀️ दुपार: {med.afternoon_dose.replace(' Tablet','')}
+                            </span>
+                            •
+                            <span className={med.evening_dose !== "0 Tablet" ? "text-indigo-600 dark:text-indigo-400 font-bold" : "opacity-40"}>
+                              🌙 रात्र: {med.evening_dose.replace(' Tablet','')}
+                            </span>
+                          </div>
+                        )}
+
+                        {med.instructions && (
+                          <div className="mt-2 text-[11px] text-slate-600 dark:text-slate-300 italic bg-amber-500/5 dark:bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/10">
+                            📝 {med.instructions}
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* 2. Active Mobile Medicine Adder Card */}
+                <div className="p-4 bg-teal-50/60 dark:bg-teal-950/20 rounded-2xl border-2 border-teal-500/40 space-y-3.5 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs uppercase tracking-wider text-teal-900 dark:text-teal-200 flex items-center gap-1.5">
+                      <Pill className="h-4 w-4 text-teal-600" />
+                      {editingMedId ? "औषध बदला (Edit Medicine)" : "नवीन औषध जोडा (Add Medicine)"}
+                    </span>
+                    {editingMedId && (
+                      <Badge variant="outline" className="bg-amber-100 text-amber-900 border-amber-300 text-[10px]">
+                        Editing #{doseMedicines.findIndex(m => m.id === editingMedId) + 1}
+                      </Badge>
+                    )}
+                  </div>
+
+                  {/* Medicine Name */}
+                  <div>
+                    <Label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                      औषधाचे नाव (Medicine Name) *
+                    </Label>
+                    <Input
+                      value={medName}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setMedName(val);
+                        const found = COMMON_MEDICINES.find(m => m.name.toLowerCase() === val.trim().toLowerCase());
+                        if (found && found.strength && !medStrength) {
+                          setMedStrength(found.strength);
+                        }
+                      }}
+                      placeholder="औषधाचे नाव टाइप करा..."
+                      className="mt-1 rounded-xl text-sm h-11 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700"
+                      list="common-medicines-datalist-mobile"
+                    />
+                    <datalist id="common-medicines-datalist-mobile">
+                      {COMMON_MEDICINES.map((med) => (
+                        <option key={med.name} value={med.name}>
+                          {med.category} • {med.strength}
+                        </option>
+                      ))}
+                    </datalist>
+                  </div>
+
+                  {/* Strength & Duration Grid */}
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div>
+                      <Label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                        प्रमाण (Strength)
+                      </Label>
+                      <div className="relative mt-1">
+                        <Input
+                          value={medStrength}
+                          onChange={(e) => setMedStrength(e.target.value)}
+                          placeholder="उदा. 500mg"
+                          className="rounded-xl text-xs h-10 pr-7 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700"
+                        />
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              type="button"
+                              className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 rounded-md flex items-center justify-center text-slate-400 hover:text-teal-600"
+                            >
+                              <ChevronDown className="h-3.5 w-3.5" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="text-xs">
+                            {["500mg", "250mg", "100mg", "650mg", "1 चमचा", "2 चमचे", "1/2 चमचा", "1 गोळी", "2 गोळ्या", "5ml", "10ml", "1 पुडी"].map((s) => (
+                              <DropdownMenuItem key={s} onClick={() => setMedStrength(s)} className="py-1.5 text-xs">
+                                {s}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                        कालावधी (Duration) *
+                      </Label>
+                      <div className="relative mt-1">
+                        <Input
+                          value={duration}
+                          onChange={(e) => setDuration(e.target.value)}
+                          placeholder="उदा. 5 Days"
+                          className="rounded-xl text-xs h-10 pr-7 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700"
+                        />
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              type="button"
+                              className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 rounded-md flex items-center justify-center text-slate-400 hover:text-teal-600"
+                            >
+                              <ChevronDown className="h-3.5 w-3.5" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="text-xs">
+                            {["3 Days", "5 Days", "7 Days", "10 Days", "15 Days", "21 Days", "30 Days", "45 Days", "60 Days"].map((d) => (
+                              <DropdownMenuItem key={d} onClick={() => setDuration(d)} className="py-1.5 text-xs">
+                                {d}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Dose Code & Timing */}
+                  <div>
+                    <Label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                      डोस कोड व वेळ (Dose Code & Timing) *
+                    </Label>
+                    <div className="relative mt-1">
+                      <Input
+                        value={doseCode}
+                        onChange={(e) => setDoseCode(e.target.value)}
+                        placeholder="उदा. 101, 1-0-1, SOS"
+                        className="rounded-xl text-xs h-10 pr-7 font-mono font-bold bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700"
+                      />
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            type="button"
+                            className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 rounded-md flex items-center justify-center text-slate-400 hover:text-teal-600"
+                          >
+                            <ChevronDown className="h-3.5 w-3.5" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="text-xs max-h-[250px] overflow-y-auto">
+                          {Object.entries(DOSE_CODES).map(([code, details]) => (
+                            <DropdownMenuItem key={code} onClick={() => setDoseCode(code)} className="py-1.5 font-mono text-xs">
+                              <span className="font-bold text-teal-700 dark:text-teal-300">[{code}]</span> — {details.summary}
+                            </DropdownMenuItem>
+                          ))}
+                          <DropdownMenuItem onClick={() => setDoseCode("SOS")} className="py-1.5 text-xs font-mono">
+                            <span className="font-bold text-amber-600">[SOS]</span> — गरज असेल तेव्हा
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setDoseCode("1-0-1")} className="py-1.5 text-xs font-mono">
+                            <span className="font-bold text-teal-700">[1-0-1]</span> — सकाळ व रात्र
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setDoseCode("1-1-1")} className="py-1.5 text-xs font-mono">
+                            <span className="font-bold text-teal-700">[1-1-1]</span> — सकाळ, दुपार, रात्र
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+
+                    {/* Quick pills */}
+                    <div className="flex items-center gap-1.5 mt-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const base = doseCode.length === 3 ? doseCode : "000";
+                          const m = base[0] === "1" ? "0" : "1";
+                          setDoseCode(`${m}${base[1]}${base[2]}`);
+                        }}
+                        className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold text-center border transition-all ${
+                          doseCode && doseCode[0] === "1"
+                            ? "bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950/60 dark:text-amber-200"
+                            : "bg-white dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-white/10"
+                        }`}
+                      >
+                        🌅 सकाळ:{doseCode && doseCode[0] === "1" ? "1" : "0"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const base = doseCode.length === 3 ? doseCode : "000";
+                          const a = base[1] === "1" ? "0" : "1";
+                          setDoseCode(`${base[0]}${a}${base[2]}`);
+                        }}
+                        className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold text-center border transition-all ${
+                          doseCode && doseCode[1] === "1"
+                            ? "bg-orange-100 text-orange-900 border-orange-300 dark:bg-orange-950/60 dark:text-orange-200"
+                            : "bg-white dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-white/10"
+                        }`}
+                      >
+                        ☀️ दुपार:{doseCode && doseCode[1] === "1" ? "1" : "0"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const base = doseCode.length === 3 ? doseCode : "000";
+                          const e = base[2] === "1" ? "0" : "1";
+                          setDoseCode(`${base[0]}${base[1]}${e}`);
+                        }}
+                        className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold text-center border transition-all ${
+                          doseCode && doseCode[2] === "1"
+                            ? "bg-indigo-100 text-indigo-900 border-indigo-300 dark:bg-indigo-950/60 dark:text-indigo-200"
+                            : "bg-white dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-white/10"
+                        }`}
+                      >
+                        🌙 रात्र:{doseCode && doseCode[2] === "1" ? "1" : "0"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Instructions */}
+                  <div>
+                    <Label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                      सूचना (Instructions)
+                    </Label>
+                    <div className="relative mt-1 flex items-center">
+                      <Input
+                        value={instructions}
+                        onChange={(e) => setInstructions(e.target.value)}
+                        placeholder="उदा. जेवणानंतर"
+                        className="rounded-xl text-xs h-10 pr-14 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700"
+                      />
+                      <div className="absolute right-1 flex items-center gap-0.5">
+                        <VoiceButton 
+                          onTranscript={(val) => setInstructions(prev => prev ? prev + " " + val : val)} 
+                          positionClassName="static h-7 w-7 p-0" 
+                        />
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              type="button"
+                              className="h-7 w-7 rounded-md flex items-center justify-center text-slate-400 hover:text-teal-600"
+                            >
+                              <ChevronDown className="h-3.5 w-3.5" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="text-xs max-h-[220px] overflow-y-auto">
+                            {[
+                              "After food (जेवणानंतर)",
+                              "Before food (जेवणापूर्वी)",
+                              "With warm water (कोमट पाण्यासोबत)",
+                              "At bedtime (झोपताना)",
+                              "Empty stomach (उपाशीपोटी)",
+                              "With milk (दुधासोबत)",
+                              "With honey (मधासोबत)",
+                              "Twice daily (दिवसातून २ वेळा)",
+                              "Thrice daily (दिवसातून ३ वेळा)",
+                              "As directed (वैद्यांच्या सल्ल्यानुसार)"
+                            ].map((inst) => (
+                              <DropdownMenuItem key={inst} onClick={() => setInstructions(inst)} className="py-1.5 text-xs">
+                                {inst}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Action buttons */}
+                  <div className="flex items-center gap-2 pt-1">
+                    <Button
+                      type="button"
+                      onClick={() => handleAddOrUpdateMedicine()}
+                      disabled={isSubmittingMed}
+                      className="flex-1 rounded-xl h-11 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs sm:text-sm shadow-md cursor-pointer"
+                    >
+                      {editingMedId ? (
+                        <>
+                          <Check className="h-4 w-4 mr-1.5" /> Update Medicine (बदल जतन करा)
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="h-4 w-4 mr-1.5" /> Add Medicine (औषध जोडा)
+                        </>
+                      )}
+                    </Button>
+                    {editingMedId && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleCancelEdit}
+                        className="rounded-xl h-11 px-4 text-xs font-semibold cursor-pointer"
+                      >
+                        Cancel
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}
 
         {/* Doctor Billing Charges Breakdown Card */}
-        <div className="bg-slate-50/90 dark:bg-black/25 p-5 rounded-2xl border border-slate-200/80 dark:border-white/10 space-y-4 my-4 max-w-[800px] mx-auto w-full shadow-sm">
+        <div className="bg-slate-50/90 dark:bg-black/25 p-4 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-white/10 space-y-4 my-4 max-w-[800px] mx-auto w-full shadow-sm">
           <div className="flex items-center gap-2 border-b border-slate-200/50 dark:border-white/5 pb-2.5">
             <AlertCircle className="h-4.5 w-4.5 text-teal-600 dark:text-teal-400 animate-pulse" />
             <span className="font-bold text-xs uppercase tracking-wider text-foreground">Billing Charges Breakdown (बिलिंग तपशील)</span>
           </div>
           
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
             <div className="flex flex-col gap-1">
               <Label className="text-[10px] font-bold text-muted-foreground uppercase">Consultation (₹)</Label>
               <Input 
@@ -2449,17 +2833,9 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
         {/* Actions panel */}
         <div className="flex flex-wrap justify-end gap-2 pt-4 border-t border-slate-200/50 dark:border-white/5">
           <Button 
-            variant="outline" 
-            onClick={() => save(false)} 
-            disabled={saving}
-            className="rounded-xl text-xs h-9 font-semibold"
-          >
-            {saving && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />} Save Record (जतन करा)
-          </Button>
-          <Button 
             onClick={() => save(true)} 
             disabled={saving}
-            className="rounded-xl text-xs bg-gradient-to-r from-teal-500 to-indigo-600 hover:from-teal-600 hover:to-indigo-700 text-white font-bold flex items-center gap-1.5 shadow-md h-9"
+            className="w-full sm:w-auto rounded-xl text-xs sm:text-sm bg-gradient-to-r from-teal-500 to-indigo-600 hover:from-teal-600 hover:to-indigo-700 text-white font-bold flex items-center justify-center gap-1.5 shadow-md h-10 sm:h-9 cursor-pointer"
           >
             {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />} Save & Send to Nurse
           </Button>
