@@ -1242,8 +1242,8 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
 
   const handleConvertTextToMeds = () => {
     if (!medicines.trim()) return;
-    const lines = medicines.split('\n').map(l => l.replace(/^[•\-\*]\s*/, '').trim()).filter(Boolean);
-    const converted: DoseMedicine[] = lines.map((line, idx) => ({
+    const lines = (medicines || "").split('\n').map((l: string) => l.replace(/^[•\-\*]\s*/, '').trim()).filter(Boolean);
+    const converted: DoseMedicine[] = lines.map((line: string, idx: number) => ({
       id: `med_text_${Date.now()}_${idx}`,
       name: line,
       strength: "",
@@ -1339,8 +1339,8 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
 
       // If doseMedicines is empty but doctor typed medicines directly in case paper textarea, auto-convert them into medicine table!
       if (currentDoseMeds.length === 0 && medicines.trim()) {
-        const lines = medicines.trim().split('\n').map(l => l.replace(/^[•\-\*]\s*/, '').trim()).filter(Boolean);
-        currentDoseMeds = lines.map((line, idx) => ({
+        const lines = (medicines || "").trim().split('\n').map((l: string) => l.replace(/^[•\-\*]\s*/, '').trim()).filter(Boolean);
+        currentDoseMeds = lines.map((line: string, idx: number) => ({
           id: `med_text_${Date.now()}_${idx}`,
           name: line,
           strength: "",
