@@ -1241,7 +1241,7 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
         </Button>
       </DialogTrigger>
       
-      <DialogContent className="max-w-4xl w-[96vw] max-h-[92vh] overflow-y-auto rounded-3xl p-4 sm:p-6 bg-slate-100/90 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:border-white/10 shadow-2xl">
+      <DialogContent className="max-w-6xl w-[96vw] max-h-[92vh] overflow-y-auto overflow-x-hidden rounded-3xl p-4 sm:p-6 bg-slate-100/90 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:border-white/10 shadow-2xl">
         
         {/* Top Header & Actions Bar */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/60 dark:border-white/10">
@@ -1660,7 +1660,7 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
 
         {/* TAB 2: Medicine Dose Code Tab */}
         {activeCaseTab === "dose_code" && (
-          <div className="space-y-6 py-2">
+          <div className="space-y-6 py-2 w-full max-w-full overflow-hidden">
             
             {/* Informational Guidance Banner */}
             <div className="bg-gradient-to-r from-teal-500/10 via-amber-500/10 to-indigo-500/10 border border-teal-500/20 rounded-2xl p-4 flex items-start gap-3">
@@ -1681,7 +1681,7 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
             </div>
 
             {/* Single-Row Prescription Pad & Live Table */}
-            <div className="bg-white dark:bg-slate-900/90 rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-sm overflow-hidden">
+            <div className="bg-white dark:bg-slate-900/90 rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-sm overflow-hidden w-full max-w-full">
               
               {/* Header */}
               <div className="p-4 sm:p-5 border-b border-slate-200/70 dark:border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-gradient-to-r from-teal-500/5 via-transparent to-transparent">
@@ -1713,18 +1713,18 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
                 </div>
               </div>
 
-              {/* Prescription Pad Table */}
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse min-w-[1100px]">
+              {/* Prescription Pad Table - 100% Fixed Width */}
+              <div className="w-full overflow-hidden">
+                <table className="w-full text-left border-collapse table-fixed">
                   <thead>
-                    <tr className="bg-slate-50 dark:bg-slate-800/70 border-b border-slate-200 dark:border-white/10 text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
-                      <th className="py-3 px-3 w-12 text-center">#</th>
-                      <th className="py-3 px-3 w-[26%] min-w-[240px]">औषधाचे नाव (Medicine Name) *</th>
-                      <th className="py-3 px-3 w-[14%] min-w-[130px]">प्रमाण (Strength)</th>
-                      <th className="py-3 px-3 w-[23%] min-w-[220px]">डोस कोड (Dose & Timing) *</th>
-                      <th className="py-3 px-3 w-[13%] min-w-[130px]">कालावधी (Duration) *</th>
-                      <th className="py-3 px-3 w-[18%] min-w-[190px]">सूचना (Instructions)</th>
-                      <th className="py-3 px-3 text-right w-24 min-w-[95px]">कृती (Action)</th>
+                    <tr className="bg-slate-50 dark:bg-slate-800/70 border-b border-slate-200 dark:border-white/10 text-[11px] sm:text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+                      <th className="py-3 px-1.5 w-10 text-center">#</th>
+                      <th className="py-3 px-2 w-[27%]">औषधाचे नाव (Medicine Name) *</th>
+                      <th className="py-3 px-2 w-[13%]">प्रमाण (Strength)</th>
+                      <th className="py-3 px-2 w-[22%]">डोस कोड (Dose & Timing) *</th>
+                      <th className="py-3 px-2 w-[12%]">कालावधी (Duration) *</th>
+                      <th className="py-3 px-2 w-[17%]">सूचना (Instructions)</th>
+                      <th className="py-3 px-1.5 text-right w-[9%]">कृती</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-white/5 text-xs">
@@ -1742,21 +1742,21 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
                         }`}
                       >
                         {/* Sr. No */}
-                        <td className="py-3.5 px-3 text-center align-middle">
-                          <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-teal-600/10 text-teal-700 dark:text-teal-400 font-bold text-xs">
+                        <td className="py-3 px-1 text-center align-middle">
+                          <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-teal-600/10 text-teal-700 dark:text-teal-400 font-bold text-xs">
                             {index + 1}
                           </span>
                         </td>
 
                         {/* Medicine Name */}
-                        <td className="py-3.5 px-3 align-middle">
-                          <div className="font-bold text-sm text-foreground">{med.name}</div>
+                        <td className="py-3 px-2 align-middle">
+                          <div className="font-bold text-xs sm:text-sm text-foreground truncate" title={med.name}>{med.name}</div>
                         </td>
 
                         {/* Strength */}
-                        <td className="py-3.5 px-3 align-middle">
+                        <td className="py-3 px-2 align-middle">
                           {med.strength ? (
-                            <span className="inline-block px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium text-xs">
+                            <span className="inline-block px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium text-xs truncate max-w-full">
                               {med.strength}
                             </span>
                           ) : (
@@ -1765,41 +1765,41 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
                         </td>
 
                         {/* Dose Code & Timing */}
-                        <td className="py-3.5 px-3 align-middle">
+                        <td className="py-3 px-2 align-middle">
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="font-mono font-bold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/60 px-2 py-0.5 rounded border border-teal-500/20 text-xs">
+                            <span className="font-mono font-bold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/60 px-1.5 py-0.5 rounded border border-teal-500/20 text-xs">
                               [{med.dose_code}]
                             </span>
-                            <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
+                            <span className="text-xs font-medium text-slate-600 dark:text-slate-300 truncate">
                               {DOSE_CODES[med.dose_code]?.summary || `${med.morning_dose.replace(' Tablet','')}-${med.afternoon_dose.replace(' Tablet','')}-${med.evening_dose.replace(' Tablet','')}`}
                             </span>
                           </div>
-                          <div className="flex items-center gap-2 mt-1.5 text-[11px] text-muted-foreground">
+                          <div className="flex items-center gap-1 mt-1 text-[10px] text-muted-foreground flex-wrap">
                             <span className={med.morning_dose !== "0 Tablet" ? "text-amber-600 dark:text-amber-400 font-bold" : "opacity-40"}>
-                              🌅 सकाळ: {med.morning_dose.replace(' Tablet','')}
+                              🌅 {med.morning_dose.replace(' Tablet','')}
                             </span>
                             •
                             <span className={med.afternoon_dose !== "0 Tablet" ? "text-orange-600 dark:text-orange-400 font-bold" : "opacity-40"}>
-                              ☀️ दुपार: {med.afternoon_dose.replace(' Tablet','')}
+                              ☀️ {med.afternoon_dose.replace(' Tablet','')}
                             </span>
                             •
                             <span className={med.evening_dose !== "0 Tablet" ? "text-indigo-600 dark:text-indigo-400 font-bold" : "opacity-40"}>
-                              🌙 रात्र: {med.evening_dose.replace(' Tablet','')}
+                              🌙 {med.evening_dose.replace(' Tablet','')}
                             </span>
                           </div>
                         </td>
 
                         {/* Duration */}
-                        <td className="py-3.5 px-3 align-middle">
-                          <span className="inline-block px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-foreground font-semibold text-xs">
+                        <td className="py-3 px-2 align-middle">
+                          <span className="inline-block px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-foreground font-semibold text-xs truncate max-w-full">
                             {med.duration}
                           </span>
                         </td>
 
                         {/* Instructions */}
-                        <td className="py-3.5 px-3 align-middle">
+                        <td className="py-3 px-2 align-middle">
                           {med.instructions ? (
-                            <span className="text-slate-600 dark:text-slate-300 text-xs font-medium">
+                            <span className="text-slate-600 dark:text-slate-300 text-xs font-medium line-clamp-2" title={med.instructions}>
                               {med.instructions}
                             </span>
                           ) : (
@@ -1808,27 +1808,27 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
                         </td>
 
                         {/* Actions */}
-                        <td className="py-3.5 px-3 text-right align-middle">
-                          <div className="flex items-center justify-end gap-1.5">
+                        <td className="py-3 px-1 text-right align-middle">
+                          <div className="flex items-center justify-end gap-1">
                             <Button
                               type="button"
                               variant="ghost"
                               size="sm"
                               onClick={() => handleEditMedicine(med)}
-                              className="h-8 px-2.5 text-xs font-semibold text-teal-600 hover:text-teal-700 hover:bg-teal-50 dark:hover:bg-teal-950/50 rounded-lg gap-1 cursor-pointer"
+                              className="h-7 w-7 p-0 text-teal-600 hover:text-teal-700 hover:bg-teal-50 dark:hover:bg-teal-950/50 rounded-lg cursor-pointer"
                               title="Edit this medicine"
                             >
-                              <Edit2 className="h-3.5 w-3.5" /> Edit
+                              <Edit2 className="h-3.5 w-3.5" />
                             </Button>
                             <Button
                               type="button"
                               variant="ghost"
                               size="sm"
                               onClick={() => handleDeleteMedicine(med.id)}
-                              className="h-8 px-2.5 text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg gap-1 cursor-pointer"
+                              className="h-7 w-7 p-0 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg cursor-pointer"
                               title="Delete this medicine"
                             >
-                              <Trash2 className="h-3.5 w-3.5" /> Delete
+                              <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                           </div>
                         </td>
@@ -1838,14 +1838,14 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
                     {/* ACTIVE ROW: Always directly below the last medicine */}
                     <tr className="bg-teal-50/50 dark:bg-teal-950/25 border-t-2 border-teal-500/50">
                       {/* Sr. No */}
-                      <td className="py-3 px-3 text-center align-top pt-4">
-                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-teal-600 text-white font-bold text-xs shadow-sm">
+                      <td className="py-2.5 px-1 text-center align-top pt-3.5">
+                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-teal-600 text-white font-bold text-xs shadow-sm">
                           {editingMedId ? "✎" : doseMedicines.length + 1}
                         </span>
                       </td>
 
                       {/* Medicine Name Input */}
-                      <td className="py-3 px-2.5 align-top">
+                      <td className="py-2.5 px-1.5 align-top">
                         <div className="space-y-1">
                           <Input
                             value={medName}
@@ -1863,8 +1863,8 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
                                 handleAddOrUpdateMedicine();
                               }
                             }}
-                            placeholder="औषधाचे नाव टाइप करा (उदा. Tab. Arogyavardhini Vati)..."
-                            className="rounded-xl text-sm h-11 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 focus:border-teal-500 font-medium shadow-2xs"
+                            placeholder="औषधाचे नाव..."
+                            className="rounded-xl text-xs sm:text-sm h-10 w-full bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 focus:border-teal-500 font-medium shadow-2xs"
                             list="common-medicines-datalist-row"
                             required
                           />
@@ -1879,7 +1879,7 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
                       </td>
 
                       {/* Strength Input with Dropdown */}
-                      <td className="py-3 px-2.5 align-top">
+                      <td className="py-2.5 px-1.5 align-top">
                         <div className="relative">
                           <Input
                             value={medStrength}
@@ -1890,17 +1890,17 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
                                 handleAddOrUpdateMedicine();
                               }
                             }}
-                            placeholder="उदा. 500mg, 1 चमचा"
-                            className="rounded-xl text-sm h-11 pr-8 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 focus:border-teal-500 font-medium shadow-2xs"
+                            placeholder="उदा. 500mg"
+                            className="rounded-xl text-xs sm:text-sm h-10 w-full pr-7 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 focus:border-teal-500 font-medium shadow-2xs"
                           />
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <button
                                 type="button"
-                                className="absolute right-1.5 top-1/2 -translate-y-1/2 h-7 w-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-950/40 transition-colors cursor-pointer"
+                                className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 rounded-md flex items-center justify-center text-slate-400 hover:text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-950/40 transition-colors cursor-pointer"
                                 title="प्रमाण निवडा"
                               >
-                                <ChevronDown className="h-4 w-4" />
+                                <ChevronDown className="h-3.5 w-3.5" />
                               </button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="text-xs font-medium">
@@ -1919,42 +1919,42 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
                       </td>
 
                       {/* Dose Code Select & Visual Indicator */}
-                      <td className="py-3 px-2.5 align-top">
-                        <div className="space-y-1.5">
+                      <td className="py-2.5 px-1.5 align-top">
+                        <div className="space-y-1">
                           <Select value={doseCode} onValueChange={(val) => setDoseCode(val)}>
-                            <SelectTrigger className="rounded-xl text-sm h-11 bg-white dark:bg-slate-900 font-mono font-medium border-slate-300 dark:border-slate-700 focus:border-teal-500 shadow-2xs">
+                            <SelectTrigger className="rounded-xl text-xs sm:text-sm h-10 w-full bg-white dark:bg-slate-900 font-mono font-medium border-slate-300 dark:border-slate-700 focus:border-teal-500 shadow-2xs px-2">
                               <SelectValue placeholder="Dose Code" />
                             </SelectTrigger>
                             <SelectContent className="rounded-xl max-h-[300px]">
                               {Object.entries(DOSE_CODES).map(([code, details]) => (
-                                <SelectItem key={code} value={code} className="text-xs font-mono py-2 cursor-pointer">
+                                <SelectItem key={code} value={code} className="text-xs font-mono py-1.5 cursor-pointer">
                                   <span className="font-bold text-teal-700 dark:text-teal-300">[{code}]</span> — {details.summary}
                                 </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-semibold ${
+                          <div className="flex items-center gap-1 flex-wrap">
+                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold ${
                               doseCode[0] === "1" ? "bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300" : "bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500"
                             }`}>
-                              🌅 सकाळ: {doseCode[0]}
+                              🌅 सकाळ:{doseCode[0]}
                             </span>
-                            <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-semibold ${
+                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold ${
                               doseCode[1] === "1" ? "bg-orange-100 text-orange-800 dark:bg-orange-950/50 dark:text-orange-300" : "bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500"
                             }`}>
-                              ☀️ दुपार: {doseCode[1]}
+                              ☀️ दुपार:{doseCode[1]}
                             </span>
-                            <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-semibold ${
+                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold ${
                               doseCode[2] === "1" ? "bg-indigo-100 text-indigo-800 dark:bg-indigo-950/50 dark:text-indigo-300" : "bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500"
                             }`}>
-                              🌙 रात्र: {doseCode[2]}
+                              🌙 रात्र:{doseCode[2]}
                             </span>
                           </div>
                         </div>
                       </td>
 
                       {/* Duration Input with Dropdown */}
-                      <td className="py-3 px-2.5 align-top">
+                      <td className="py-2.5 px-1.5 align-top">
                         <div className="relative">
                           <Input
                             value={duration}
@@ -1966,17 +1966,17 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
                               }
                             }}
                             placeholder="उदा. 5 Days"
-                            className="rounded-xl text-sm h-11 pr-8 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 focus:border-teal-500 font-medium shadow-2xs"
+                            className="rounded-xl text-xs sm:text-sm h-10 w-full pr-7 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 focus:border-teal-500 font-medium shadow-2xs"
                             required
                           />
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <button
                                 type="button"
-                                className="absolute right-1.5 top-1/2 -translate-y-1/2 h-7 w-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-950/40 transition-colors cursor-pointer"
+                                className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 rounded-md flex items-center justify-center text-slate-400 hover:text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-950/40 transition-colors cursor-pointer"
                                 title="कालावधी निवडा"
                               >
-                                <ChevronDown className="h-4 w-4" />
+                                <ChevronDown className="h-3.5 w-3.5" />
                               </button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="text-xs font-medium">
@@ -1995,7 +1995,7 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
                       </td>
 
                       {/* Instructions Input with Voice & Dropdown */}
-                      <td className="py-3 px-2.5 align-top">
+                      <td className="py-2.5 px-1.5 align-top">
                         <div className="relative flex items-center">
                           <Input
                             value={instructions}
@@ -2006,22 +2006,22 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
                                 handleAddOrUpdateMedicine();
                               }
                             }}
-                            placeholder="उदा. जेवणानंतर, कोमट पाण्यासोबत"
-                            className="rounded-xl text-sm h-11 pr-16 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 focus:border-teal-500 font-medium shadow-2xs"
+                            placeholder="उदा. जेवणानंतर"
+                            className="rounded-xl text-xs sm:text-sm h-10 w-full pr-12 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 focus:border-teal-500 font-medium shadow-2xs"
                           />
-                          <div className="absolute right-1.5 flex items-center gap-1">
+                          <div className="absolute right-1 flex items-center gap-0.5">
                             <VoiceButton 
                               onTranscript={(val) => setInstructions(prev => prev ? prev + " " + val : val)} 
-                              positionClassName="static h-7 w-7 p-0" 
+                              positionClassName="static h-6 w-6 p-0" 
                             />
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <button
                                   type="button"
-                                  className="h-7 w-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-950/40 transition-colors cursor-pointer"
+                                  className="h-6 w-6 rounded-md flex items-center justify-center text-slate-400 hover:text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-950/40 transition-colors cursor-pointer"
                                   title="सूचना निवडा"
                                 >
-                                  <ChevronDown className="h-4 w-4" />
+                                  <ChevronDown className="h-3.5 w-3.5" />
                                 </button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="text-xs max-h-[280px] overflow-y-auto">
@@ -2052,21 +2052,21 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
                       </td>
 
                       {/* Action Button: Add or Update */}
-                      <td className="py-3 px-2.5 align-top text-right">
+                      <td className="py-2.5 px-1.5 align-top text-right">
                         <div className="flex flex-col gap-1.5 items-end">
                           <Button
                             type="button"
                             onClick={() => handleAddOrUpdateMedicine()}
                             disabled={isSubmittingMed}
-                            className="rounded-xl text-sm h-11 px-4 bg-teal-600 hover:bg-teal-700 text-white font-bold flex items-center justify-center gap-1.5 shadow-sm whitespace-nowrap w-full cursor-pointer"
+                            className="rounded-xl text-xs sm:text-sm h-10 px-2 sm:px-3 bg-teal-600 hover:bg-teal-700 text-white font-bold flex items-center justify-center gap-1 shadow-sm whitespace-nowrap w-full cursor-pointer"
                           >
                             {editingMedId ? (
                               <>
-                                <Check className="h-4 w-4" /> Save
+                                <Check className="h-3.5 w-3.5" /> Save
                               </>
                             ) : (
                               <>
-                                <Plus className="h-4 w-4" /> Add
+                                <Plus className="h-3.5 w-3.5" /> Add
                               </>
                             )}
                           </Button>
@@ -2076,7 +2076,7 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
                               variant="outline"
                               size="sm"
                               onClick={handleCancelEdit}
-                              className="rounded-xl text-xs h-8 px-2 font-medium w-full cursor-pointer"
+                              className="rounded-xl text-xs h-7 px-1 font-medium w-full cursor-pointer"
                             >
                               Cancel
                             </Button>
