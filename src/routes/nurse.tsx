@@ -20,7 +20,7 @@ import {
   Search, Send, Receipt, Download, Users, ClipboardList, CheckCircle2, 
   Plus, Loader2, FileText, Menu, X, ArrowUpDown, Phone, User, MapPin, 
   Calendar, Stethoscope, TrendingUp, AlertCircle, Clock, Activity, History, Trash2,
-  Layers, MessageSquare, Edit3, Printer, ZoomIn, Pill, ArrowLeft
+  Layers, MessageSquare, Edit3, Printer, ZoomIn, Pill, ArrowLeft, ChevronDown
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { VoiceButton } from "@/components/VoiceButton";
@@ -1733,175 +1733,195 @@ function PatientCaseCard({ c, doctorPick, setDoctorPick, sendToDoctor, onDelete,
           </div>
         </div>
 
-        {/* Patient Details & Clinical History */}
-        <div className="border border-slate-100 dark:border-white/5 rounded-2xl p-3.5 bg-muted/10 space-y-3">
-          <div className="flex justify-between items-center">
-            <span className="text-[10px] uppercase tracking-wider font-bold text-primary flex items-center gap-1.5">
-              <ClipboardList className="h-3.5 w-3.5" />
-              तक्रारी व इतिहास (Complaints & History)
-            </span>
-            <div className="flex items-center gap-2">
-              <NurseClinicalEditDialog
-                caseRow={c}
-                doctorPick={doctorPick}
-                setDoctorPick={setDoctorPick}
-                sendToDoctor={sendToDoctor}
-                doctorsList={doctorsList}
-                trigger={
-                  <Button size="sm" variant="ghost" className="h-6 text-[10px] px-2 rounded-lg text-teal-700 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-950/50 font-bold">
-                    <Edit3 className="h-3 w-3 mr-1" /> Edit
+        {/* Toggle Expand / Collapse Bar - Default Compact View matches Image 2 */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setExpanded(!expanded);
+          }}
+          className="w-full mt-auto py-2 px-3 rounded-xl bg-slate-100/70 hover:bg-slate-200/70 dark:bg-slate-800/60 dark:hover:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between transition-all cursor-pointer border border-slate-200/60 dark:border-white/5 shadow-2xs hover:shadow-xs"
+        >
+          <span className="flex items-center gap-1.5 text-[11px] font-medium text-slate-600 dark:text-slate-400">
+            <ClipboardList className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
+            <span>{hasClinicalDetails ? "तक्रारी व इतिहास भरले आहेत" : "तक्रारी व माहिती नोंदवा"}</span>
+          </span>
+          <span className="text-[11px] text-teal-700 dark:text-teal-300 font-bold flex items-center gap-1 bg-teal-50 dark:bg-teal-950/60 px-2 py-0.5 rounded-lg border border-teal-200 dark:border-teal-800/60">
+            <span>{expanded ? "माहिती लपवा (Hide)" : "अधिक माहिती उघडा (View Details)"}</span>
+            <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
+          </span>
+        </button>
+
+        {/* Expanded Info & Action Section */}
+        {expanded && (
+          <div className="space-y-4 pt-1 animate-in fade-in-50 duration-200">
+            {/* Patient Details & Clinical History */}
+            <div className="border border-slate-100 dark:border-white/5 rounded-2xl p-3.5 bg-muted/10 space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] uppercase tracking-wider font-bold text-primary flex items-center gap-1.5">
+                  <ClipboardList className="h-3.5 w-3.5" />
+                  तक्रारी व इतिहास (Complaints & History)
+                </span>
+                <div className="flex items-center gap-2">
+                  <NurseClinicalEditDialog
+                    caseRow={c}
+                    doctorPick={doctorPick}
+                    setDoctorPick={setDoctorPick}
+                    sendToDoctor={sendToDoctor}
+                    doctorsList={doctorsList}
+                    trigger={
+                      <Button size="sm" variant="ghost" className="h-6 text-[10px] px-2 rounded-lg text-teal-700 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-950/50 font-bold">
+                        <Edit3 className="h-3 w-3 mr-1" /> Edit
+                      </Button>
+                    }
+                  />
+                </div>
+              </div>
+
+              {/* Notice if complaints & past history not yet entered */}
+              {!hasClinicalDetails && (
+                <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-2.5 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 text-[11px] text-amber-800 dark:text-amber-300 font-medium">
+                    <AlertCircle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                    <span>तक्रारी व इतिहास नोंदवलेले नाहीत</span>
+                  </div>
+                  <NurseClinicalEditDialog
+                    caseRow={c}
+                    doctorPick={doctorPick}
+                    setDoctorPick={setDoctorPick}
+                    sendToDoctor={sendToDoctor}
+                    doctorsList={doctorsList}
+                    trigger={
+                      <Button size="sm" className="h-7 text-[11px] px-2.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold shadow-sm">
+                        + नोंदवा (Add)
+                      </Button>
+                    }
+                  />
+                </div>
+              )}
+
+              {/* Chief Complaints Display */}
+              {c.notes && (
+                <div className="bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/15 rounded-xl p-2.5">
+                  <span className="text-[9px] uppercase tracking-wider font-bold text-amber-700 dark:text-amber-400 block mb-0.5">
+                    Chief Complaints / लक्षणे:
+                  </span>
+                  <p className="text-xs text-foreground leading-relaxed whitespace-pre-line font-medium">
+                    {c.notes}
+                  </p>
+                </div>
+              )}
+
+              {/* Past History Display */}
+              {c.past_history && (
+                <div className="bg-teal-500/5 dark:bg-teal-500/10 border border-teal-500/15 rounded-xl p-2.5">
+                  <span className="text-[9px] uppercase tracking-wider font-bold text-teal-700 dark:text-teal-400 block mb-0.5">
+                    मागील इतिहास (Past History):
+                  </span>
+                  <p className="text-xs text-foreground leading-relaxed font-medium">
+                    {c.past_history}
+                  </p>
+                </div>
+              )}
+
+              {/* Menstrual History Display if any */}
+              {c.menstrual_history && (
+                <div className="bg-pink-500/5 dark:bg-pink-500/10 border border-pink-500/15 rounded-xl p-2.5">
+                  <span className="text-[9px] uppercase tracking-wider font-bold text-pink-700 dark:text-pink-400 block mb-0.5">
+                    पाळीचा इतिहास:
+                  </span>
+                  <p className="text-xs text-foreground leading-relaxed font-medium">
+                    {c.menstrual_history}
+                  </p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs pt-2 border-t dark:border-white/5">
+                <div>
+                  <span className="text-[9px] uppercase text-muted-foreground block">Marital Status</span>
+                  <span className="font-semibold text-foreground">{c.marital_status || "—"}</span>
+                </div>
+                <div>
+                  <span className="text-[9px] uppercase text-muted-foreground block">Weight</span>
+                  <span className="font-semibold text-foreground">{c.weight || "—"}</span>
+                </div>
+                <div>
+                  <span className="text-[9px] uppercase text-muted-foreground block">Education</span>
+                  <span className="font-semibold text-foreground">{c.education || "—"}</span>
+                </div>
+                <div>
+                  <span className="text-[9px] uppercase text-muted-foreground block">Occupation</span>
+                  <span className="font-semibold text-foreground">{c.occupation || "—"}</span>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 pt-2">
+                <NurseClinicalEditDialog
+                  caseRow={c}
+                  doctorPick={doctorPick}
+                  setDoctorPick={setDoctorPick}
+                  sendToDoctor={sendToDoctor}
+                  doctorsList={doctorsList}
+                />
+                <BillingDialog caseRow={c} />
+                {c.total_bill ? (
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-xl text-[11px] font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
+                    ₹ {Number(c.total_bill).toFixed(2)}
+                  </span>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="pt-2 flex flex-col gap-2">
+              {c.status === "submitted" && (
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Select
+                    value={doctorPick[c.id] || c.assigned_doctor || ""}
+                    onValueChange={(val) => setDoctorPick((p: any) => ({ ...p, [c.id]: val }))}
+                  >
+                    <SelectTrigger className="w-full sm:w-[200px] h-9 rounded-xl"><SelectValue placeholder="Pick doctor" /></SelectTrigger>
+                    <SelectContent>
+                      {doctorsList.map((doc: any) => (
+                        <SelectItem key={doc.id} value={doc.id}>{doc.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button 
+                    size="sm" 
+                    onClick={() => sendToDoctor(c)}
+                    className="w-full sm:flex-1 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 h-9 font-semibold text-xs"
+                  >
+                    <Send className="mr-1.5 h-4 w-4" /> Send to Dr.
                   </Button>
-                }
-              />
-              <button onClick={() => setExpanded(!expanded)} className="text-[10px] text-muted-foreground hover:text-foreground font-semibold">
-                {expanded ? "Less" : "Details"}
-              </button>
+                </div>
+              )}
+
+              {["returned_to_nurse", "billed", "completed"].includes(c.status) && (
+                <div className="flex flex-wrap gap-2">
+                  <InvoicePreviewDialog
+                    caseRow={c}
+                    trigger={
+                      <Button size="sm" variant="outline" className="rounded-xl h-9 text-xs">
+                        <Download className="mr-1.5 h-4 w-4" /> Download Bill
+                      </Button>
+                    }
+                  />
+                  <Button size="sm" variant="outline" onClick={() => {
+                    const tId = toast.loading("Preparing Print...");
+                    try {
+                      generateInvoicePDF(c, "print");
+                      toast.success("Print dialog opened!", { id: tId });
+                    } catch (e: any) {
+                      toast.error(`Failed to print Invoice`, { id: tId });
+                    }
+                  }} className="rounded-xl h-9 text-xs">
+                    <Printer className="mr-1.5 h-4 w-4" /> Print Bill
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
-
-          {/* Notice if complaints & past history not yet entered */}
-          {!hasClinicalDetails && (
-            <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-2.5 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5 text-[11px] text-amber-800 dark:text-amber-300 font-medium">
-                <AlertCircle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
-                <span>तक्रारी व इतिहास नोंदवलेले नाहीत</span>
-              </div>
-              <NurseClinicalEditDialog
-                caseRow={c}
-                doctorPick={doctorPick}
-                setDoctorPick={setDoctorPick}
-                sendToDoctor={sendToDoctor}
-                doctorsList={doctorsList}
-                trigger={
-                  <Button size="sm" className="h-7 text-[11px] px-2.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold shadow-sm">
-                    + नोंदवा (Add)
-                  </Button>
-                }
-              />
-            </div>
-          )}
-
-          {/* Chief Complaints Display */}
-          {c.notes && (
-            <div className="bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/15 rounded-xl p-2.5">
-              <span className="text-[9px] uppercase tracking-wider font-bold text-amber-700 dark:text-amber-400 block mb-0.5">
-                Chief Complaints / लक्षणे:
-              </span>
-              <p className="text-xs text-foreground leading-relaxed whitespace-pre-line font-medium">
-                {c.notes}
-              </p>
-            </div>
-          )}
-
-          {/* Past History Display */}
-          {c.past_history && (
-            <div className="bg-teal-500/5 dark:bg-teal-500/10 border border-teal-500/15 rounded-xl p-2.5">
-              <span className="text-[9px] uppercase tracking-wider font-bold text-teal-700 dark:text-teal-400 block mb-0.5">
-                मागील इतिहास (Past History):
-              </span>
-              <p className="text-xs text-foreground leading-relaxed font-medium">
-                {c.past_history}
-              </p>
-            </div>
-          )}
-
-          {/* Menstrual History Display if any */}
-          {c.menstrual_history && (
-            <div className="bg-pink-500/5 dark:bg-pink-500/10 border border-pink-500/15 rounded-xl p-2.5">
-              <span className="text-[9px] uppercase tracking-wider font-bold text-pink-700 dark:text-pink-400 block mb-0.5">
-                पाळीचा इतिहास:
-              </span>
-              <p className="text-xs text-foreground leading-relaxed font-medium">
-                {c.menstrual_history}
-              </p>
-            </div>
-          )}
-
-          {expanded && (
-            <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs pt-2 border-t dark:border-white/5">
-              <div>
-                <span className="text-[9px] uppercase text-muted-foreground block">Marital Status</span>
-                <span className="font-semibold text-foreground">{c.marital_status || "—"}</span>
-              </div>
-              <div>
-                <span className="text-[9px] uppercase text-muted-foreground block">Weight</span>
-                <span className="font-semibold text-foreground">{c.weight || "—"}</span>
-              </div>
-              <div>
-                <span className="text-[9px] uppercase text-muted-foreground block">Education</span>
-                <span className="font-semibold text-foreground">{c.education || "—"}</span>
-              </div>
-              <div>
-                <span className="text-[9px] uppercase text-muted-foreground block">Occupation</span>
-                <span className="font-semibold text-foreground">{c.occupation || "—"}</span>
-              </div>
-            </div>
-          )}
-          <div className="flex flex-wrap items-center gap-2 pt-2">
-            <NurseClinicalEditDialog
-              caseRow={c}
-              doctorPick={doctorPick}
-              setDoctorPick={setDoctorPick}
-              sendToDoctor={sendToDoctor}
-              doctorsList={doctorsList}
-            />
-            <BillingDialog caseRow={c} />
-            {c.total_bill ? (
-              <span className="inline-flex items-center px-2.5 py-1 rounded-xl text-[11px] font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
-                ₹ {Number(c.total_bill).toFixed(2)}
-              </span>
-            ) : null}
-          </div>
-        </div>
-
-        <div className="mt-auto pt-2 flex flex-col gap-2">
-          {c.status === "submitted" && (
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Select
-                value={doctorPick[c.id] || c.assigned_doctor || ""}
-                onValueChange={(val) => setDoctorPick((p: any) => ({ ...p, [c.id]: val }))}
-              >
-                <SelectTrigger className="w-full sm:w-[200px] h-9 rounded-xl"><SelectValue placeholder="Pick doctor" /></SelectTrigger>
-                <SelectContent>
-                  {doctorsList.map((doc: any) => (
-                    <SelectItem key={doc.id} value={doc.id}>{doc.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button 
-                size="sm" 
-                onClick={() => sendToDoctor(c)}
-                className="w-full sm:flex-1 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 h-9 font-semibold text-xs"
-              >
-                <Send className="mr-1.5 h-4 w-4" /> Send to Dr.
-              </Button>
-            </div>
-          )}
-
-          {["returned_to_nurse", "billed", "completed"].includes(c.status) && (
-            <div className="flex flex-wrap gap-2">
-              <InvoicePreviewDialog
-                caseRow={c}
-                trigger={
-                  <Button size="sm" variant="outline" className="rounded-xl h-9 text-xs">
-                    <Download className="mr-1.5 h-4 w-4" /> Download Bill
-                  </Button>
-                }
-              />
-              <Button size="sm" variant="outline" onClick={() => {
-                const tId = toast.loading("Preparing Print...");
-                try {
-                  generateInvoicePDF(c, "print");
-                  toast.success("Print dialog opened!", { id: tId });
-                } catch (e: any) {
-                  toast.error(`Failed to print Invoice`, { id: tId });
-                }
-              }} className="rounded-xl h-9 text-xs">
-                <Printer className="mr-1.5 h-4 w-4" /> Print Bill
-              </Button>
-            </div>
-          )}
-        </div>
+        )}
       </CardContent>
     </Card>
   );
