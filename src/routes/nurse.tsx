@@ -1779,58 +1779,50 @@ function BillingDialog({ caseRow }: { caseRow: any }) {
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [printing, setPrinting] = useState(false);
-  const [bill, setBill] = useState({
-    consultation_charge: Number(caseRow.consultation_charge ?? 0),
-    procedure_charge: Number(caseRow.procedure_charge ?? 0),
-    medicine_charge: Number(caseRow.medicine_charge ?? 0),
-    test_charge: Number(caseRow.test_charge ?? 0),
-    other_charge: Number(caseRow.other_charge ?? 0),
-  });
+
+  const [consultationCharge, setConsultationCharge] = useState<number>(Number(caseRow.consultation_charge ?? 0));
+  const [procedureCharge, setProcedureCharge] = useState<number>(
+    Number(caseRow.procedure_charge ?? 0) || Number(caseRow.medicine_charge ?? 0)
+  );
+  const [testCharge, setTestCharge] = useState<number>(Number(caseRow.test_charge ?? 0));
 
   useEffect(() => {
     if (open) {
-      setBill({
-        consultation_charge: Number(caseRow.consultation_charge ?? 0),
-        procedure_charge: Number(caseRow.procedure_charge ?? 0),
-        medicine_charge: Number(caseRow.medicine_charge ?? 0),
-        test_charge: Number(caseRow.test_charge ?? 0),
-        other_charge: Number(caseRow.other_charge ?? 0),
-      });
+      setConsultationCharge(Number(caseRow.consultation_charge ?? 0));
+      setProcedureCharge(Number(caseRow.procedure_charge ?? 0) || Number(caseRow.medicine_charge ?? 0));
+      setTestCharge(Number(caseRow.test_charge ?? 0));
     }
   }, [open, caseRow]);
 
+  // Total = Consultation + Procedure/Medical + Test
   const total = 
-    Number(bill.consultation_charge || 0) + 
-    Number(bill.procedure_charge || 0) + 
-    Number(bill.medicine_charge || 0) + 
-    Number(bill.test_charge || 0) + 
-    Number(bill.other_charge || 0);
+    Number(consultationCharge || 0) + 
+    Number(procedureCharge || 0) + 
+    Number(testCharge || 0);
 
   const getUpdatedCase = () => ({
     ...caseRow,
-    consultation_charge: Number(bill.consultation_charge || 0),
-    procedure_charge: Number(bill.procedure_charge || 0),
-    medicine_charge: Number(bill.medicine_charge || 0),
-    test_charge: Number(bill.test_charge || 0),
-    other_charge: Number(bill.other_charge || 0),
+    consultation_charge: Number(consultationCharge || 0),
+    procedure_charge: Number(procedureCharge || 0),
+    medicine_charge: 0,
+    test_charge: Number(testCharge || 0),
+    other_charge: 0,
     total_bill: total,
     status: "billed",
   });
 
   const persistBill = async () => {
     await updateDoc(doc(db, "case_papers", caseRow.id), {
-      consultation_charge: Number(bill.consultation_charge || 0),
-      procedure_charge: Number(bill.procedure_charge || 0),
-      medicine_charge: Number(bill.medicine_charge || 0),
-      test_charge: Number(bill.test_charge || 0),
-      other_charge: Number(bill.other_charge || 0),
+      consultation_charge: Number(consultationCharge || 0),
+      procedure_charge: Number(procedureCharge || 0),
+      medicine_charge: 0,
+      test_charge: Number(testCharge || 0),
+      other_charge: 0,
       total_bill: total,
       billing: {
-        consultationFee: Number(bill.consultation_charge || 0),
-        procedureCharges: Number(bill.procedure_charge || 0),
-        medicineCharges: Number(bill.medicine_charge || 0),
-        labCharges: Number(bill.test_charge || 0),
-        otherCharges: Number(bill.other_charge || 0),
+        consultationFee: Number(consultationCharge || 0),
+        procedureCharges: Number(procedureCharge || 0),
+        testCharges: Number(testCharge || 0),
         total: total,
         status: "billed"
       },
@@ -1843,7 +1835,7 @@ function BillingDialog({ caseRow }: { caseRow: any }) {
     setSaving(true);
     try {
       await persistBill();
-      toast.success("Bill generated & saved successfully!");
+      toast.success("Bill saved successfully!");
       setOpen(false);
     } catch (err: any) {
       toast.error(err.message);
@@ -1891,138 +1883,118 @@ function BillingDialog({ caseRow }: { caseRow: any }) {
           <Receipt className="h-3 w-3" /> Billing
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl w-[95vw] rounded-3xl p-6 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-white/10 shadow-2xl">
-        <DialogHeader className="border-b border-slate-200/60 dark:border-white/10 pb-3">
+      <DialogContent className="max-w-md w-[95vw] rounded-2xl p-5 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 shadow-2xl">
+        <DialogHeader className="border-b border-slate-200/80 dark:border-white/10 pb-3">
           <div className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+            <div className="h-9 w-9 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0">
               <Receipt className="h-5 w-5" />
             </div>
             <div>
-              <DialogTitle className="text-lg font-extrabold text-foreground">Billing & Checkout (बिलिंग)</DialogTitle>
+              <DialogTitle className="text-base sm:text-lg font-bold text-foreground">Billing (बिलिंग)</DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                Patient: <span className="font-bold text-foreground uppercase">{caseRow.full_name}</span> | Doctor: {caseRow.assigned_doctor_name || "Doctor"}
+                रुग्ण: <span className="font-bold text-foreground uppercase">{caseRow.full_name}</span> • ID: {(caseRow.id || "").substring(0, 8).toUpperCase()}
               </DialogDescription>
             </div>
           </div>
         </DialogHeader>
 
-        {/* Fees and Billing Card style matching screenshot */}
-        <div className="bg-white dark:bg-black/25 p-5 rounded-2xl border border-slate-200/80 dark:border-white/10 space-y-4 my-2 shadow-sm">
-          <div className="flex items-center gap-2 border-b border-slate-200/50 dark:border-white/5 pb-2.5">
-            <AlertCircle className="h-4.5 w-4.5 text-teal-600 dark:text-teal-400" />
-            <span className="font-bold text-xs uppercase tracking-wider text-foreground">Billing Charges Breakdown</span>
-          </div>
-          
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            {/* 1. Consultation */}
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Consultation (₹)</Label>
-              <Input 
-                type="number" 
-                min="0" 
-                step="0.01" 
-                placeholder="0.00"
-                value={bill.consultation_charge} 
-                onChange={(e) => setBill({ ...bill, consultation_charge: Number(e.target.value) || 0 })} 
-                className="rounded-xl text-xs h-9 focus-visible:ring-teal-500 bg-background border-slate-200 dark:border-white/10 font-semibold"
-              />
-            </div>
-            
-            {/* 2. Procedure ("Processor") */}
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Procedure (₹)</Label>
-              <Input 
-                type="number" 
-                min="0" 
-                step="0.01" 
-                placeholder="0.00"
-                value={bill.procedure_charge} 
-                onChange={(e) => setBill({ ...bill, procedure_charge: Number(e.target.value) || 0 })} 
-                className="rounded-xl text-xs h-9 focus-visible:ring-teal-500 bg-background border-slate-200 dark:border-white/10 font-semibold"
-              />
-            </div>
-
-            {/* 3. Medical / Medicines ("medical") */}
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Medical (₹)</Label>
-              <Input 
-                type="number" 
-                min="0" 
-                step="0.01" 
-                placeholder="0.00"
-                value={bill.medicine_charge} 
-                onChange={(e) => setBill({ ...bill, medicine_charge: Number(e.target.value) || 0 })} 
-                className="rounded-xl text-xs h-9 focus-visible:ring-teal-500 bg-background border-slate-200 dark:border-white/10 font-semibold"
-              />
-            </div>
-
-            {/* 4. Test Charges ("Test charger") */}
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Test Charges (₹)</Label>
-              <Input 
-                type="number" 
-                min="0" 
-                step="0.01" 
-                placeholder="0.00"
-                value={bill.test_charge} 
-                onChange={(e) => setBill({ ...bill, test_charge: Number(e.target.value) || 0 })} 
-                className="rounded-xl text-xs h-9 focus-visible:ring-teal-500 bg-background border-slate-200 dark:border-white/10 font-semibold"
-              />
-            </div>
-
-            {/* 5. Other Charges */}
-            <div className="flex flex-col gap-1.5 col-span-2 sm:col-span-1">
-              <Label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Other (₹)</Label>
-              <Input 
-                type="number" 
-                min="0" 
-                step="0.01" 
-                placeholder="0.00"
-                value={bill.other_charge} 
-                onChange={(e) => setBill({ ...bill, other_charge: Number(e.target.value) || 0 })} 
-                className="rounded-xl text-xs h-9 focus-visible:ring-teal-500 bg-background border-slate-200 dark:border-white/10 font-semibold"
-              />
-            </div>
+        {/* Clean 3-Field Billing Form */}
+        <div className="space-y-3.5 my-2">
+          {/* 1. Consultation Charges */}
+          <div className="flex flex-col gap-1">
+            <Label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+              Consultation Charges (₹)
+            </Label>
+            <Input 
+              type="number" 
+              min="0" 
+              step="0.01" 
+              placeholder="0.00"
+              value={consultationCharge || ""} 
+              onChange={(e) => setConsultationCharge(Number(e.target.value) || 0)} 
+              className="rounded-xl text-sm h-10 focus-visible:ring-emerald-500 bg-background border-slate-300 dark:border-slate-700 font-semibold"
+            />
           </div>
 
-          {/* Total Calculation Preview */}
-          <div className="flex items-center justify-between bg-slate-100/80 dark:bg-slate-800/60 p-3.5 rounded-xl border border-slate-200/60 dark:border-white/10">
-            <span className="font-extrabold text-foreground tracking-wide uppercase text-[11px]">Estimated Consultation Total</span>
-            <span className="font-black text-base sm:text-lg text-teal-600 dark:text-teal-400">₹ {total.toFixed(2)}</span>
+          {/* 2. Procedure / Medical Charges */}
+          <div className="flex flex-col gap-1">
+            <Label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+              Procedure / Medical Charges (₹)
+            </Label>
+            <Input 
+              type="number" 
+              min="0" 
+              step="0.01" 
+              placeholder="0.00"
+              value={procedureCharge || ""} 
+              onChange={(e) => setProcedureCharge(Number(e.target.value) || 0)} 
+              className="rounded-xl text-sm h-10 focus-visible:ring-emerald-500 bg-background border-slate-300 dark:border-slate-700 font-semibold"
+            />
+          </div>
+
+          {/* 3. Test Charges */}
+          <div className="flex flex-col gap-1">
+            <Label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+              Test Charges (₹)
+            </Label>
+            <Input 
+              type="number" 
+              min="0" 
+              step="0.01" 
+              placeholder="0.00"
+              value={testCharge || ""} 
+              onChange={(e) => setTestCharge(Number(e.target.value) || 0)} 
+              className="rounded-xl text-sm h-10 focus-visible:ring-emerald-500 bg-background border-slate-300 dark:border-slate-700 font-semibold"
+            />
+          </div>
+
+          {/* Automatically Calculated Total */}
+          <div className="flex items-center justify-between bg-emerald-50 dark:bg-emerald-950/40 p-3.5 rounded-xl border border-emerald-200 dark:border-emerald-800/60 mt-1">
+            <div>
+              <span className="block font-bold text-xs uppercase tracking-wide text-emerald-900 dark:text-emerald-200">
+                Total Amount
+              </span>
+              <span className="text-[10px] text-emerald-700 dark:text-emerald-400">
+                (Consultation + Procedure/Medical + Test)
+              </span>
+            </div>
+            <span className="font-black text-xl text-emerald-700 dark:text-emerald-300">
+              ₹ {total.toFixed(2)}
+            </span>
           </div>
         </div>
 
-        {/* Action buttons footer with separate Download and Print buttons */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-3 border-t border-slate-200/60 dark:border-white/10 mt-2">
+        {/* Action Buttons: Save Bill, Print, Download PDF */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 pt-3 border-t border-slate-200/80 dark:border-white/10 mt-2">
           <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleDownload}
-              disabled={saving || downloading || printing}
-              className="flex-1 sm:flex-initial rounded-xl h-10 px-3.5 text-xs font-semibold border-slate-200 dark:border-white/10 hover:bg-blue-50 dark:hover:bg-blue-950/40 text-blue-700 dark:text-blue-300 gap-1.5 cursor-pointer shadow-2xs"
-            >
-              {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-              <span>Download Bill</span>
-            </Button>
             <Button
               type="button"
               variant="outline"
               onClick={handlePrint}
               disabled={saving || downloading || printing}
-              className="flex-1 sm:flex-initial rounded-xl h-10 px-3.5 text-xs font-semibold border-slate-200 dark:border-white/10 hover:bg-purple-50 dark:hover:bg-purple-950/40 text-purple-700 dark:text-purple-300 gap-1.5 cursor-pointer shadow-2xs"
+              className="flex-1 sm:flex-initial rounded-xl h-9 px-3 text-xs font-semibold border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 gap-1.5 cursor-pointer shadow-2xs"
             >
-              {printing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
-              <span>Print Bill</span>
+              {printing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Printer className="h-3.5 w-3.5" />}
+              <span>Print</span>
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleDownload}
+              disabled={saving || downloading || printing}
+              className="flex-1 sm:flex-initial rounded-xl h-9 px-3 text-xs font-semibold border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 gap-1.5 cursor-pointer shadow-2xs"
+            >
+              {downloading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+              <span>Download PDF</span>
             </Button>
           </div>
 
           <div className="flex items-center justify-end gap-2">
             <Button 
               type="button" 
-              variant="outline" 
+              variant="ghost" 
               onClick={() => setOpen(false)} 
-              className="rounded-xl h-10 px-4 text-xs font-semibold cursor-pointer"
+              className="rounded-xl h-9 px-3 text-xs font-semibold cursor-pointer text-slate-500 hover:text-slate-700"
             >
               Cancel
             </Button>
@@ -2030,10 +2002,10 @@ function BillingDialog({ caseRow }: { caseRow: any }) {
               type="button" 
               onClick={saveBill} 
               disabled={saving || downloading || printing} 
-              className="rounded-xl h-10 px-5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm cursor-pointer gap-1.5"
+              className="rounded-xl h-9 px-4 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm cursor-pointer gap-1.5"
             >
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-              <span>Save & Mark as Billed</span>
+              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+              <span>Save Bill</span>
             </Button>
           </div>
         </div>

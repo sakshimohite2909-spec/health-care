@@ -706,52 +706,25 @@ export async function generateInvoicePDF(c: CaseRow, action: "view" | "download"
   // --- Table Data Setup ---
   const activeRows: { name: string; qty: number; amount: number }[] = [];
   
-  // 1. Consultation Services
+  // 1. Consultation Charges
   if (Number(c.consultation_charge ?? 0) > 0) {
-    activeRows.push({ name: "Consultation Services", qty: 1, amount: Number(c.consultation_charge) });
+    activeRows.push({ name: "Consultation Charges", qty: 1, amount: Number(c.consultation_charge) });
   }
   
-  // 2. Medicines
-  let medicinesParsed = false;
-  if (c.medicines && c.medicines.trim()) {
-    const lines = c.medicines.split("\n").map(l => l.trim()).filter(l => l.length > 0);
-    const parsedItems: { name: string; qty: number; amount: number }[] = [];
-    
-    lines.forEach((line, idx) => {
-      const parsed = parseMedicineLine(line, idx, Number(c.medicine_charge ?? 0), lines.length);
-      if (parsed) {
-        parsedItems.push(parsed);
-      }
-    });
-    
-    if (parsedItems.length > 0) {
-      activeRows.push(...parsedItems);
-      medicinesParsed = true;
-    }
-  }
-  
-  if (!medicinesParsed && Number(c.medicine_charge ?? 0) > 0) {
-    activeRows.push({ name: "Pharmacy / Medicines", qty: 1, amount: Number(c.medicine_charge) });
-  }
-  
-  // 3. Tests
-  if (Number(c.test_charge ?? 0) > 0) {
-    activeRows.push({ name: "Investigations / Tests", qty: 1, amount: Number(c.test_charge) });
+  // 2. Procedure / Medical Charges
+  const procMedAmount = Number(c.procedure_charge ?? 0) + Number(c.medicine_charge ?? 0);
+  if (procMedAmount > 0) {
+    activeRows.push({ name: "Procedure / Medical Charges", qty: 1, amount: procMedAmount });
   }
 
-  // 4. Clinical Procedures
-  if (Number(c.procedure_charge ?? 0) > 0) {
-    activeRows.push({ name: "Clinical Procedure / Treatment", qty: 1, amount: Number(c.procedure_charge) });
+  // 3. Test Charges
+  if (Number(c.test_charge ?? 0) > 0) {
+    activeRows.push({ name: "Test Charges", qty: 1, amount: Number(c.test_charge) });
   }
-  
-  // 5. Other Charges
-  if (Number(c.other_charge ?? 0) > 0) {
-    activeRows.push({ name: "Other General Charges", qty: 1, amount: Number(c.other_charge) });
-  }
-  
+
   // Fallback row if no charges entered
   if (activeRows.length === 0) {
-    activeRows.push({ name: "Consultation Services", qty: 1, amount: 0 });
+    activeRows.push({ name: "Consultation Charges", qty: 1, amount: 0 });
   }
   
   const total = activeRows.reduce((sum, r) => sum + r.amount, 0);
