@@ -278,3 +278,13 @@
     animation-delay: 450ms;
   }
 }
+
+/* Print optimization to ensure full A4 layout on paper/print */
+@media print {
+  [id^="case-paper-"] {
+    transform: none !important;
+    position: static !important;
+    width: 794px !important;
+    min-width: 794px !important;
+  }
+}

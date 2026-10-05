@@ -33,7 +33,7 @@ import { VoiceButton } from "@/components/VoiceButton";
 
 export const Route = createFileRoute("/patient")({
   component: () => (
-    <AppShell title="Patient"><PatientPage /></AppShell>
+    <AppShell title="Patient" fullWidth><PatientPage /></AppShell>
   ),
 });
 
@@ -343,6 +343,7 @@ function CasePaperContent({ c }: { c: any }) {
 
 function CasePaperCard({ c, setBusy }: { c: any; setBusy: (b: boolean) => void }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   
   // Calculate initial scale synchronously so mobile renders immediately without crop
   const getInitialIsMobile = () => (typeof window !== "undefined" ? window.innerWidth < 820 : false);
@@ -351,43 +352,56 @@ function CasePaperCard({ c, setBusy }: { c: any; setBusy: (b: boolean) => void }
     const w = window.innerWidth;
     if (w < 820) {
       // Usable width on mobile (screen minus page padding)
-      const available = Math.max(260, w - 24);
+      const available = Math.max(200, w - 24);
       return Math.min(1, available / 794);
     }
     return 1;
   };
 
   const [scale, setScale] = useState<number>(getInitialScale);
+  const [contentHeight, setContentHeight] = useState<number>(1123);
   const [isFitMode, setIsFitMode] = useState<boolean>(true);
   const [isMobileScreen, setIsMobileScreen] = useState<boolean>(getInitialIsMobile);
 
   useEffect(() => {
-    const handleResize = () => {
-      const containerWidth = containerRef.current ? containerRef.current.clientWidth : window.innerWidth;
-      const isMobile = window.innerWidth < 820 || containerWidth < 820;
+    const updateDimensions = () => {
+      if (!containerRef.current) return;
+      
+      const computedStyle = window.getComputedStyle(containerRef.current);
+      const paddingLeft = parseFloat(computedStyle.paddingLeft) || 0;
+      const paddingRight = parseFloat(computedStyle.paddingRight) || 0;
+      const availableWidth = Math.max(200, containerRef.current.clientWidth - paddingLeft - paddingRight);
+      
+      const isMobile = window.innerWidth < 820 || availableWidth < 794;
       setIsMobileScreen(isMobile);
 
+      // Measure unscaled content height dynamically from DOM
+      const innerEl = contentRef.current;
+      if (innerEl) {
+        const measuredH = innerEl.scrollHeight || innerEl.offsetHeight || 1123;
+        setContentHeight(Math.max(1123, measuredH));
+      }
+
       if (isFitMode && isMobile) {
-        // Measure real available inner width
-        const available = Math.max(260, (containerWidth || window.innerWidth) - 8);
-        const computedScale = Math.min(1, available / 794);
+        const computedScale = Math.min(1, availableWidth / 794);
         setScale(computedScale);
       } else {
         setScale(1);
       }
     };
 
-    handleResize();
-    window.addEventListener("resize", handleResize);
+    updateDimensions();
 
-    let ro: ResizeObserver | null = null;
-    if (typeof ResizeObserver !== "undefined" && containerRef.current) {
-      ro = new ResizeObserver(() => handleResize());
-      ro.observe(containerRef.current);
-    }
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => updateDimensions()) : null;
+    if (ro && containerRef.current) ro.observe(containerRef.current);
+    if (ro && contentRef.current) ro.observe(contentRef.current);
+
+    window.addEventListener("resize", updateDimensions);
+    window.addEventListener("orientationchange", updateDimensions);
 
     return () => {
-      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("resize", updateDimensions);
+      window.removeEventListener("orientationchange", updateDimensions);
       if (ro) ro.disconnect();
     };
   }, [isFitMode]);
@@ -437,21 +451,26 @@ function CasePaperCard({ c, setBusy }: { c: any; setBusy: (b: boolean) => void }
       </div>
 
       {/* Printable Area Wrapper with Clean Responsive Scaling */}
-      <div ref={containerRef} className="w-full bg-slate-100/70 dark:bg-slate-950/40 p-2 sm:p-4 overflow-hidden">
+      <div 
+        ref={containerRef} 
+        className="w-full bg-slate-100/70 dark:bg-slate-950/40 p-1 sm:p-4 overflow-hidden flex justify-center items-start"
+      >
         {isFitMode && isMobileScreen && scale < 1 ? (
           /* Auto-Fit Container: Scaled down proportionally without any cropping */
           <div className="w-full flex justify-center items-start overflow-hidden py-1">
             <div
               style={{
-                width: `${Math.round(794 * scale)}px`,
-                height: `${Math.round(1123 * scale)}px`,
+                width: `${Math.floor(794 * scale)}px`,
+                height: `${Math.ceil(contentHeight * scale)}px`,
                 position: "relative",
                 overflow: "hidden",
-                borderRadius: "6px",
+                borderRadius: "4px",
                 boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+                flexShrink: 0,
               }}
             >
               <div
+                ref={contentRef}
                 id={`case-paper-${c.id}`}
                 style={{
                   width: "794px",
@@ -474,6 +493,7 @@ function CasePaperCard({ c, setBusy }: { c: any; setBusy: (b: boolean) => void }
           <div className="w-full overflow-x-auto overflow-y-visible py-2 custom-scrollbar">
             <div className="min-w-[794px] w-[794px] mx-auto">
               <div
+                ref={contentRef}
                 id={`case-paper-${c.id}`}
                 style={{
                   width: "794px",
@@ -797,7 +817,7 @@ function PatientPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-4 pb-16 pt-2 md:pt-4 px-2 sm:px-0">
+    <div className="max-w-4xl mx-auto space-y-4 pb-16 pt-2 md:pt-4 px-1 sm:px-4">
       {/* Back to Home Button */}
       <div className="flex items-center justify-between">
         <Button 
