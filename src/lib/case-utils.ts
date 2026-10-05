@@ -117,12 +117,17 @@ export type CaseRow = {
   dose_medicines?: DoseMedicine[] | null;
   tests: string | null;
   consultation_charge: number | null;
+  procedure_charge?: number | null;
   medicine_charge: number | null;
   test_charge: number | null;
   other_charge: number | null;
   total_bill: number | null;
   created_at: string;
   updated_at: string;
+  patient?: any;
+  nurse?: any;
+  doctor?: any;
+  billing?: any;
 };
 
 export type CaseStatus =
@@ -143,22 +148,32 @@ export function calculateAge(dob: string): number {
   return Math.max(0, age);
 }
 
-export const statusLabel: Record<CaseStatus, string> = {
-  submitted: "Submitted",
-  sent_to_doctor: "Pending with Doctor",
-  under_review: "Under Review",
+export const statusLabel: Record<string, string> = {
+  submitted: "Nurse",
+  sent_to_doctor: "Doctor",
+  under_review: "Doctor",
   completed: "Completed",
-  returned_to_nurse: "Returned to Nurse",
-  billed: "Billed",
+  returned_to_nurse: "Billing",
+  billed: "Completed",
+  PATIENT_REGISTERED: "Nurse",
+  NURSE: "Nurse",
+  DOCTOR: "Doctor",
+  BILLING: "Billing",
+  COMPLETED: "Completed",
 };
 
-export const statusColor: Record<CaseStatus, string> = {
+export const statusColor: Record<string, string> = {
   submitted: "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30",
   sent_to_doctor: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30",
-  under_review: "bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-500/30",
+  under_review: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30",
   completed: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
   returned_to_nurse: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border-cyan-500/30",
-  billed: "bg-pink-500/15 text-pink-700 dark:text-pink-300 border-pink-500/30",
+  billed: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
+  PATIENT_REGISTERED: "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30",
+  NURSE: "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30",
+  DOCTOR: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30",
+  BILLING: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border-cyan-500/30",
+  COMPLETED: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
 };
 
 export const doctorName: Record<"doctor1" | "doctor2", string> = {
@@ -194,28 +209,98 @@ export const roleHome: Record<AppRole, string> = {
 
 export const HOSPITAL_NAME = "MediCare General Hospital";
 
+export function extractCleanNotes(notesVal: any, fallbackVal: string = ""): string {
+  if (!notesVal) return fallbackVal;
+  if (typeof notesVal === "string") {
+    const trimmed = notesVal.trim();
+    if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (parsed && typeof parsed === "object") {
+          return typeof parsed.notes === "string" ? parsed.notes : fallbackVal;
+        }
+      } catch (e) {
+        // Not valid JSON, keep as is
+      }
+    }
+    return notesVal;
+  }
+  if (typeof notesVal === "object" && notesVal !== null) {
+    return typeof notesVal.notes === "string" ? notesVal.notes : fallbackVal;
+  }
+  return fallbackVal;
+}
+
 export function parseCaseNotes(c: any): any {
   if (!c) return {};
+  let res = { ...c };
+
+  // Support structured data model if present
+  if (c.patient && typeof c.patient === "object") {
+    res.full_name = res.full_name || c.patient.name || "";
+    res.dob = res.dob || c.patient.dob || "";
+    res.age = res.age ?? c.patient.age ?? 0;
+    res.gender = res.gender || c.patient.gender || "";
+    res.mobile = res.mobile || c.patient.mobile || "";
+    res.marital_status = res.marital_status || c.patient.maritalStatus || "";
+    res.education = res.education || c.patient.education || "";
+    res.address = res.address || c.patient.address || "";
+    res.occupation = res.occupation || c.patient.occupation || "";
+    res.parents_occupation = res.parents_occupation || c.patient.parentOccupation || "";
+  }
+
+  if (c.nurse && typeof c.nurse === "object") {
+    res.notes = extractCleanNotes(c.nurse.presentIllness || res.notes || "", "");
+    res.menstrual_history = res.menstrual_history || c.nurse.menstrualHistory || "";
+    res.past_history = res.past_history || c.nurse.pastHistory || "";
+    res.weight = res.weight || c.nurse.weight || "";
+    res.assigned_doctor = res.assigned_doctor || c.nurse.selectedDoctor || "";
+  }
+
+  if (c.doctor && typeof c.doctor === "object") {
+    res.prescription = res.prescription || c.doctor.advice || "";
+    res.tests = res.tests || c.doctor.clinicalTests || "";
+    res.medical_notes = res.medical_notes || c.doctor.diagnosis || "";
+    if (c.doctor.medicines && (!res.dose_medicines || res.dose_medicines.length === 0)) {
+      res.dose_medicines = c.doctor.medicines;
+    }
+  }
+
+  if (c.billing && typeof c.billing === "object") {
+    res.consultation_charge = res.consultation_charge ?? c.billing.consultationFee;
+    res.procedure_charge = res.procedure_charge ?? c.billing.procedureCharges;
+    res.medicine_charge = res.medicine_charge ?? c.billing.medicineCharges;
+    res.test_charge = res.test_charge ?? c.billing.labCharges;
+    res.other_charge = res.other_charge ?? c.billing.otherCharges;
+    res.total_bill = res.total_bill ?? c.billing.total;
+  }
+
   try {
-    const parsed = JSON.parse(c.notes || "{}");
-    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-      return {
-        ...c,
-        notes: parsed.notes || "",
-        marital_status: parsed.marital_status || "",
-        education: parsed.education || "",
-        occupation: parsed.occupation || "",
-        parents_occupation: parsed.parents_occupation || "",
-        menstrual_history: parsed.menstrual_history || "",
-        past_history: parsed.past_history || "",
-        weight: parsed.weight || "",
-        gender: parsed.gender || "",
-      };
+    const rawNotes = typeof c.notes === "string" ? c.notes.trim() : "";
+    if (rawNotes.startsWith("{") && rawNotes.endsWith("}")) {
+      const parsed = JSON.parse(rawNotes);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        res.notes = typeof parsed.notes === "string" ? parsed.notes : (c.nurse?.presentIllness || "");
+        res.marital_status = res.marital_status || parsed.marital_status || "";
+        res.education = res.education || parsed.education || "";
+        res.occupation = res.occupation || parsed.occupation || "";
+        res.parents_occupation = res.parents_occupation || parsed.parents_occupation || "";
+        res.menstrual_history = res.menstrual_history || parsed.menstrual_history || "";
+        res.past_history = res.past_history || parsed.past_history || "";
+        res.weight = res.weight || parsed.weight || "";
+        res.gender = res.gender || parsed.gender || "";
+      }
+    } else {
+      res.notes = extractCleanNotes(res.notes, c.nurse?.presentIllness || "");
     }
   } catch (e) {
-    // Not JSON, just plain string
+    res.notes = extractCleanNotes(res.notes, c.nurse?.presentIllness || "");
   }
-  return c;
+
+  // Final check to guarantee notes is never raw JSON
+  res.notes = extractCleanNotes(res.notes, "");
+
+  return res;
 }
 
 export async function convertLeadToPatient(lead: any) {

@@ -25,7 +25,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { statusColor, statusLabel, doctorName, CaseStatus, calculateAge, parseCaseNotes, getDoctorDeduplicationKey, DOSE_CODES, COMMON_MEDICINES } from "@/lib/case-utils";
+import { statusColor, statusLabel, doctorName, CaseStatus, calculateAge, parseCaseNotes, extractCleanNotes, getDoctorDeduplicationKey, DOSE_CODES, COMMON_MEDICINES } from "@/lib/case-utils";
 import type { DoseMedicine } from "@/lib/case-utils";
 import { generatePDFFromElementId } from "@/lib/pdf";
 import { 
@@ -150,7 +150,6 @@ function DoctorPage() {
   const [activeTab, setActiveTab] = useState<"all" | "pending" | "reviewing" | "completed">("all");
   const [sortBy, setSortBy] = useState<"newest" | "oldest" | "name">("newest");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [selectedCaseForEdit, setSelectedCaseForEdit] = useState<any | null>(null);
 
   // Fetch all doctors strictly from Firestore
   useEffect(() => {
@@ -304,11 +303,6 @@ function DoctorPage() {
     });
   }, [allCases, selectedDoctorId, activeDoctor]);
 
-  // Keep active case editor synchronized with live Firestore updates
-  const currentEditingCase = useMemo(() => {
-    if (!selectedCaseForEdit) return null;
-    return allCases.find(c => c.id === selectedCaseForEdit.id) || selectedCaseForEdit;
-  }, [allCases, selectedCaseForEdit]);
 
   // Sidebar Counts for the active doctor
   const counts = useMemo(() => {
@@ -744,9 +738,9 @@ function DoctorPage() {
                       <div className="flex-1 h-[1px] bg-gradient-to-r from-slate-200 dark:from-white/10 to-transparent" />
                     </div>
                     
-                    {/* Cards Grid for this day */}
+                    {/* Cards Grid for this day - Compact 3 to 4 columns */}
                     <AnimatePresence mode="popLayout">
-                      <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-2" style={{ gridAutoRows: "1fr" }}>
+                      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" style={{ gridAutoRows: "1fr" }}>
                         {items.map((c) => {
                           const cardIdx = globalCardIndex++;
                           return (
@@ -757,7 +751,6 @@ function DoctorPage() {
                                 onSaved={() => {}} 
                                 meta={activeDoctor}
                                 onDelete={deleteCase}
-                                onOpenCase={(caseItem) => setSelectedCaseForEdit(caseItem)}
                               />
                             </AnimatedWrapper>
                           );
@@ -772,21 +765,6 @@ function DoctorPage() {
 
         </div>
       </div>
-
-      {/* Global Doctor Case Editor Modal - opens instantly in 1 click */}
-      {currentEditingCase && (
-        <CaseEditor 
-          caseRow={currentEditingCase}
-          open={true}
-          onOpenChange={(isOpen) => {
-            if (!isOpen) setSelectedCaseForEdit(null);
-          }}
-          onSaved={() => {
-            setSelectedCaseForEdit(null);
-          }}
-          trigger={null}
-        />
-      )}
     </div>
   );
 }
@@ -849,7 +827,8 @@ function StatCard({ label, value, icon: Icon, color, pulse = false }: { label: s
   );
 }
 
-function PatientCaseCard({ c, onAccept, onSaved, meta, onDelete, onOpenCase }: { c: any; onAccept: () => void; onSaved: () => void; meta: any; onDelete?: (c: any) => void; onOpenCase: (c: any) => void }) {
+function PatientCaseCard({ c, onAccept, onSaved, meta, onDelete }: { c: any; onAccept: () => void; onSaved: () => void; meta: any; onDelete?: (c: any) => void }) {
+  const [editorOpen, setEditorOpen] = useState(false);
   const initials = c.full_name ? c.full_name.split(" ").map((n: string) => n[0]).join("").substring(0, 2).toUpperCase() : "PT";
 
   const isPending = c.status === "sent_to_doctor";
@@ -865,130 +844,158 @@ function PatientCaseCard({ c, onAccept, onSaved, meta, onDelete, onOpenCase }: {
     return new Date(c.created_at).toLocaleDateString();
   }, [c.created_at]);
 
+  const handleOpen = () => {
+    if (isPending) {
+      onAccept();
+    }
+    setEditorOpen(true);
+  };
+
   return (
-    <Card 
-      style={{ display: "flex", flexDirection: "column", height: "100%", flex: 1, width: "100%" }}
-      className={`
-      relative bg-white/70 dark:bg-slate-900/60 backdrop-blur-xl border border-white/50 dark:border-white/10 rounded-3xl overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1
-      ${isPending ? "border-l-4 border-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.1)]" : ""}
-      ${isReviewing ? "border-l-4 border-violet-400 shadow-[0_0_15px_rgba(139,92,246,0.1)]" : ""}
-    `}
-    >
-      <CardContent style={{ display: "flex", flexDirection: "column", height: "100%", flex: 1 }} className="p-4 sm:p-5 gap-3.5">
-        
-        {/* Card Header Profile & Status */}
-        <div className="flex items-start justify-between gap-2.5">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary border dark:border-white/5 font-bold text-xs grid place-items-center">
-              {initials}
-            </div>
-            <div>
-              <h3 className="font-extrabold text-sm text-foreground uppercase tracking-wide leading-tight">{c.full_name}</h3>
-              <div className="text-[11px] text-muted-foreground mt-0.5 font-medium flex items-center gap-1.5">
-                <Clock className="h-3 w-3" />
-                <span>{relativeTime}</span>
+    <>
+      <Card 
+        onClick={handleOpen}
+        style={{ display: "flex", flexDirection: "column", height: "100%", flex: 1, width: "100%" }}
+        className={`
+        relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-sm overflow-hidden transition-all duration-200 hover:shadow-md hover:border-teal-500/60 cursor-pointer group select-none
+        ${isPending ? "border-l-4 border-l-amber-500 shadow-xs" : ""}
+        ${isReviewing ? "border-l-4 border-l-teal-600 shadow-xs" : ""}
+      `}
+      >
+        <CardContent style={{ display: "flex", flexDirection: "column", height: "100%", flex: 1 }} className="p-3 gap-2">
+          
+          {/* Card Header Profile & Status */}
+          <div className="flex items-start justify-between gap-1.5">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-7 h-7 rounded-sm bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/20 font-bold text-[11px] grid place-items-center shrink-0">
+                {initials}
+              </div>
+              <div className="min-w-0">
+                <h3 className="font-bold text-xs text-foreground uppercase tracking-wide leading-tight truncate group-hover:text-teal-600 transition-colors">
+                  {c.full_name}
+                </h3>
+                <div className="text-[10px] text-muted-foreground mt-0.5 font-medium flex items-center gap-1">
+                  <Clock className="h-2.5 w-2.5" />
+                  <span>{relativeTime}</span>
+                </div>
               </div>
             </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <Badge className={`${statusColor[c.status as CaseStatus] || ""} text-[9px] font-semibold border rounded-sm px-1.5 py-0.5`} variant="outline">
+                {statusLabel[c.status as CaseStatus] || c.status}
+              </Badge>
+              {onDelete && (
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(c);
+                  }} 
+                  className="h-6 w-6 rounded-sm text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                  title="Delete Case"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Badge className={`${statusColor[c.status as CaseStatus] || ""} text-[10px] font-semibold border`} variant="outline">
-              {statusLabel[c.status as CaseStatus] || c.status}
-            </Badge>
-            {onDelete && (
-              <Button variant="ghost" size="icon" onClick={() => onDelete(c)} className="h-6 w-6 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors">
-                <Trash2 className="h-3.5 w-3.5" />
+
+          {/* Info Grid details - Compact & Square */}
+          <div className="grid grid-cols-2 gap-1.5 text-xs">
+            <div className="bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-white/5 rounded-sm px-2 py-1 flex flex-col">
+              <span className="text-[8px] uppercase tracking-wide text-muted-foreground font-bold">Age / Gender</span>
+              <span className="font-semibold text-[11px] text-foreground mt-0.5 truncate">{String(c.age ?? calculateAge(c.dob))} Y {c.gender ? `/ ${c.gender}` : ''}</span>
+            </div>
+            <div className="bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-white/5 rounded-sm px-2 py-1 flex flex-col">
+              <span className="text-[8px] uppercase tracking-wide text-muted-foreground font-bold">Mobile</span>
+              <span className="font-semibold text-[11px] text-foreground mt-0.5 flex items-center gap-1 truncate">
+                <Phone className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
+                <span>{c.mobile || "—"}</span>
+              </span>
+            </div>
+            <div className="bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-white/5 rounded-sm px-2 py-1 flex flex-col col-span-2">
+              <span className="text-[8px] uppercase tracking-wide text-muted-foreground font-bold">Address</span>
+              <span className="font-medium text-[11px] text-foreground mt-0.5 truncate">{c.address || "—"}</span>
+            </div>
+          </div>
+
+          {/* Action Button Area - 1 Click Case Paper Open, Square, Compact */}
+          <div className="mt-auto pt-1 flex flex-wrap gap-2">
+            {isPending ? (
+              <Button 
+                type="button"
+                size="sm" 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpen();
+                }}
+                className="w-full rounded-sm bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-700 hover:to-amber-600 text-white flex items-center justify-center gap-1.5 shadow-xs border-0 h-8 text-xs font-semibold cursor-pointer"
+              >
+                <Stethoscope className="h-3.5 w-3.5" /> Start Consultation (सल्ला सुरू करा)
+              </Button>
+            ) : (
+              <Button 
+                type="button"
+                size="sm" 
+                variant="outline" 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpen();
+                }}
+                className="w-full rounded-sm flex items-center justify-center gap-1.5 h-8 text-xs font-semibold hover:bg-teal-50 dark:hover:bg-teal-950/40 text-teal-800 dark:text-teal-200 border-teal-300 dark:border-teal-700 transition-colors bg-background cursor-pointer"
+              >
+                <FileText className="h-3.5 w-3.5 text-teal-600" /> Open Clinical Record (केस पेपर पहा)
               </Button>
             )}
           </div>
-        </div>
 
-        {/* Info Grid details */}
-        <div className="grid grid-cols-2 gap-2 text-xs">
-          <div className="bg-muted/30 border border-muted/50 rounded-xl px-3 py-2 flex flex-col">
-            <span className="text-[9px] uppercase tracking-wide text-muted-foreground font-semibold">Age / Gender</span>
-            <span className="font-bold text-foreground mt-0.5 truncate">{String(c.age ?? calculateAge(c.dob))} Y {c.gender ? `/ ${c.gender}` : ''}</span>
-          </div>
-          <div className="bg-muted/30 border border-muted/50 rounded-xl px-3 py-2 flex flex-col">
-            <span className="text-[9px] uppercase tracking-wide text-muted-foreground font-semibold">Mobile Contact</span>
-            <span className="font-bold text-foreground mt-0.5 flex items-center gap-1 truncate">
-              <Phone className="h-3 w-3 text-muted-foreground" />
-              <span>{c.mobile || "—"}</span>
-            </span>
-          </div>
-          <div className="bg-muted/30 border border-muted/50 rounded-xl px-3 py-2 flex flex-col col-span-2">
-            <span className="text-[9px] uppercase tracking-wide text-muted-foreground font-semibold">Address</span>
-            <span className="font-bold text-foreground mt-0.5 truncate">{c.address || "—"}</span>
-          </div>
-        </div>
+        </CardContent>
+      </Card>
 
-        {/* Action Button Area - 1 Click Case Paper Open */}
-        <div className="mt-auto pt-1 flex flex-wrap gap-2">
-          {isPending ? (
-            <Button 
-              size="sm" 
-              onClick={() => {
-                onAccept();
-                onOpenCase(c);
-              }}
-              className="w-full rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-700 hover:to-amber-600 text-white flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/10 animate-pulse border-0 h-9 font-semibold cursor-pointer"
-            >
-              <Stethoscope className="h-4 w-4" /> Start Consultation (सल्ला सुरू करा)
-            </Button>
-          ) : (
-            <Button 
-              size="sm" 
-              variant="outline" 
-              onClick={() => onOpenCase(c)}
-              className="w-full rounded-xl flex items-center justify-center gap-1.5 h-9 font-semibold hover:bg-teal-50 dark:hover:bg-teal-950/40 text-teal-800 dark:text-teal-200 border-teal-300 dark:border-teal-700 transition-colors bg-background cursor-pointer"
-            >
-              <FileText className="h-4 w-4 text-teal-600" /> Open Clinical Record (केस पेपर पहा)
-            </Button>
-          )}
-        </div>
-
-      </CardContent>
-    </Card>
+      {/* Embedded 1-Click Case Editor Dialog */}
+      <CaseEditor
+        caseRow={c}
+        open={editorOpen}
+        onOpenChange={setEditorOpen}
+        onSaved={() => {
+          setEditorOpen(false);
+          onSaved();
+        }}
+      />
+    </>
   );
 }
 
 function CaseEditor({ 
   caseRow, 
   onSaved, 
-  open: controlledOpen, 
-  onOpenChange: controlledOnOpenChange, 
-  trigger 
+  open, 
+  onOpenChange 
 }: { 
   caseRow: any; 
   onSaved: () => void; 
-  open?: boolean; 
-  onOpenChange?: (open: boolean) => void; 
-  trigger?: React.ReactNode; 
+  open: boolean; 
+  onOpenChange: (open: boolean) => void; 
 }) {
-  const [internalOpen, setInternalOpen] = useState(false);
-  const isControlled = controlledOpen !== undefined;
-  const open = isControlled ? controlledOpen : internalOpen;
-  const setOpen = (val: boolean) => {
-    if (isControlled) {
-      controlledOnOpenChange?.(val);
-    } else {
-      setInternalOpen(val);
-    }
-  };
+  if (!caseRow) return null;
+
+  const setOpen = onOpenChange;
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [activeCaseTab, setActiveCaseTab] = useState<"case_paper" | "dose_code">("case_paper");
   
-  const [notes, setNotes] = useState(caseRow.notes || "");
-  const [pastHistory, setPastHistory] = useState(caseRow.past_history || "");
-  const [menstrualHistory, setMenstrualHistory] = useState(caseRow.menstrual_history || "");
-  const [weight, setWeight] = useState(caseRow.weight || "");
-  const [medicalNotes, setMedicalNotes] = useState(caseRow.medical_notes || "");
-  const [prescription, setPrescription] = useState(caseRow.prescription || "");
-  const [medicines, setMedicines] = useState(caseRow.medicines || "");
-  const [tests, setTests] = useState(caseRow.tests || "");
+  const [notes, setNotes] = useState(caseRow?.notes || "");
+  const [pastHistory, setPastHistory] = useState(caseRow?.past_history || "");
+  const [menstrualHistory, setMenstrualHistory] = useState(caseRow?.menstrual_history || "");
+  const [weight, setWeight] = useState(caseRow?.weight || "");
+  const [medicalNotes, setMedicalNotes] = useState(caseRow?.medical_notes || "");
+  const [prescription, setPrescription] = useState(caseRow?.prescription || "");
+  const [medicines, setMedicines] = useState(caseRow?.medicines || "");
+  const [tests, setTests] = useState(caseRow?.tests || "");
   
   // Dose code medicines state
-  const [doseMedicines, setDoseMedicines] = useState<DoseMedicine[]>(caseRow.dose_medicines || []);
+  const [doseMedicines, setDoseMedicines] = useState<DoseMedicine[]>(caseRow?.dose_medicines || []);
   
   // Medicine prescription form inputs
   const [medName, setMedName] = useState("");
@@ -999,68 +1006,23 @@ function CaseEditor({
   const [editingMedId, setEditingMedId] = useState<string | null>(null);
   const [isSubmittingMed, setIsSubmittingMed] = useState(false);
 
-  const [consultationCharge, setConsultationCharge] = useState(Number(caseRow.consultation_charge ?? 0));
-  const [medicineCharge, setMedicineCharge] = useState(Number(caseRow.medicine_charge ?? 0));
-  const [testCharge, setTestCharge] = useState(Number(caseRow.test_charge ?? 0));
-  const [otherCharge, setOtherCharge] = useState(Number(caseRow.other_charge ?? 0));
+  const [consultationCharge, setConsultationCharge] = useState(Number(caseRow?.consultation_charge ?? 0));
+  const [medicineCharge, setMedicineCharge] = useState(Number(caseRow?.medicine_charge ?? 0));
+  const [testCharge, setTestCharge] = useState(Number(caseRow?.test_charge ?? 0));
+  const [otherCharge, setOtherCharge] = useState(Number(caseRow?.other_charge ?? 0));
 
   // Calculated doses based on 3-digit binary dose code
   const currentMorningDose = doseCode[0] === "1" ? "1 Tablet" : "0 Tablet";
   const currentAfternoonDose = doseCode[1] === "1" ? "1 Tablet" : "0 Tablet";
   const currentEveningDose = doseCode[2] === "1" ? "1 Tablet" : "0 Tablet";
 
-  const isClosingViaBackRef = useRef(false);
-  const activeCaseTabRef = useRef(activeCaseTab);
-  activeCaseTabRef.current = activeCaseTab;
-
-  // Browser Back Button & History management:
-  // Step-by-step history handling:
-  // When modal is open, browser back will first return from "dose_code" to "case_paper",
-  // and next back will close the modal to dashboard, NEVER leaping to website landing page!
-  useEffect(() => {
-    if (!open) return;
-
-    // Push initial history state for modal
-    window.history.pushState({ modal: "case_editor", tab: "case_paper", caseId: caseRow.id }, "");
-
-    const onPopState = (event: PopStateEvent) => {
-      if (activeCaseTabRef.current === "dose_code") {
-        setActiveCaseTab("case_paper");
-      } else {
-        isClosingViaBackRef.current = true;
-        setOpen(false);
-      }
-    };
-
-    window.addEventListener("popstate", onPopState);
-
-    return () => {
-      window.removeEventListener("popstate", onPopState);
-      if (!isClosingViaBackRef.current && window.history.state?.modal === "case_editor") {
-        window.history.back();
-      }
-      isClosingViaBackRef.current = false;
-    };
-  }, [open, caseRow.id]);
-
   const switchTab = (tab: "case_paper" | "dose_code") => {
-    if (tab === activeCaseTab) return;
-    if (tab === "dose_code") {
-      window.history.pushState({ modal: "case_editor", tab: "dose_code", caseId: caseRow.id }, "");
-    } else if (tab === "case_paper" && window.history.state?.tab === "dose_code") {
-      window.history.back();
-      return;
-    }
     setActiveCaseTab(tab);
   };
 
   const handleGoBack = () => {
     if (activeCaseTab === "dose_code") {
-      if (window.history.state?.tab === "dose_code") {
-        window.history.back();
-      } else {
-        setActiveCaseTab("case_paper");
-      }
+      setActiveCaseTab("case_paper");
     } else {
       setOpen(false);
     }
@@ -1069,7 +1031,7 @@ function CaseEditor({
   // Re-sync data when dialog opens
   useEffect(() => {
     if (open) {
-      setNotes(caseRow.notes || "");
+      setNotes(extractCleanNotes(caseRow.notes, caseRow.nurse?.presentIllness || ""));
       setPastHistory(caseRow.past_history || "");
       setMenstrualHistory(caseRow.menstrual_history || "");
       setWeight(caseRow.weight || "");
@@ -1235,18 +1197,6 @@ function CaseEditor({
   const save = async (sendBack: boolean) => {
     setSaving(true);
     try {
-      const updatedNotesJson = JSON.stringify({
-        notes: notes.trim(),
-        marital_status: caseRow.marital_status || "",
-        education: caseRow.education || "",
-        occupation: caseRow.occupation || "",
-        parents_occupation: caseRow.parents_occupation || "",
-        menstrual_history: menstrualHistory.trim(),
-        past_history: pastHistory.trim(),
-        weight: weight.trim(),
-        gender: caseRow.gender || "",
-      });
-
       let currentDoseMeds = [...doseMedicines];
 
       // Auto-commit if doctor typed medicine in the row but clicked "Save" directly without clicking "+ Add"
@@ -1335,7 +1285,6 @@ function CaseEditor({
       const finalMedicinesText = doseSummary || medicines.trim();
 
       await updateDoc(doc(db, "case_papers", caseRow.id), {
-        notes: updatedNotesJson,
         medical_notes: medicalNotes.trim(),
         prescription: prescription.trim(),
         medicines: finalMedicinesText,
@@ -1347,9 +1296,15 @@ function CaseEditor({
         other_charge: Number(otherCharge || 0),
         total_bill: total,
         ...(sendBack ? { status: "returned_to_nurse" } : { status: "under_review" }),
+        doctor: {
+          diagnosis: medicalNotes.trim(),
+          medicines: sanitizedDoseMedicines,
+          clinicalTests: tests.trim(),
+          advice: prescription.trim()
+        },
         updated_at: new Date().toISOString()
       });
-      toast.success(sendBack ? "Case sent back to nurse successfully" : "Case saved successfully");
+      toast.success(sendBack ? "Prescription completed. Returned to nurse for billing." : "Case saved successfully");
       setOpen(false);
       onSaved();
     } catch (err: any) {
@@ -1374,19 +1329,7 @@ function CaseEditor({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      {trigger !== null && (
-        <DialogTrigger asChild>
-          {trigger ? (
-            trigger
-          ) : (
-            <Button size="sm" variant="outline" className="w-full rounded-xl flex items-center justify-center gap-1.5 h-9 font-medium hover:bg-primary/5 hover:text-primary transition-colors border-slate-200 dark:border-white/10 bg-background">
-              <FileText className="h-4 w-4 text-muted-foreground" /> Open clinical record
-            </Button>
-          )}
-        </DialogTrigger>
-      )}
-      
-      <DialogContent className="max-w-6xl w-[96vw] max-h-[92vh] overflow-y-auto overflow-x-hidden rounded-2xl sm:rounded-3xl p-3 sm:p-6 bg-slate-100/90 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:border-white/10 shadow-2xl">
+      <DialogContent className="max-w-6xl w-[96vw] max-h-[92vh] overflow-y-auto overflow-x-hidden rounded-xl p-3 sm:p-6 bg-slate-100/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:border-white/10 shadow-2xl">
         
         {/* Top Header & Actions Bar */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/60 dark:border-white/10">
@@ -1438,13 +1381,25 @@ function CaseEditor({
 
             <Button
               type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => save(false)}
+              disabled={saving}
+              className="rounded-xl h-8 sm:h-9 text-[11px] sm:text-xs font-semibold cursor-pointer"
+            >
+              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+              Save Draft
+            </Button>
+
+            <Button
+              type="button"
               size="sm"
               onClick={() => save(true)}
               disabled={saving}
-              className="rounded-xl h-8 sm:h-9 px-3 bg-gradient-to-r from-teal-500 to-indigo-600 hover:from-teal-600 hover:to-indigo-700 text-white font-bold text-[11px] sm:text-xs shadow-md shrink-0 cursor-pointer"
+              className="rounded-xl h-8 sm:h-9 px-3.5 bg-gradient-to-r from-teal-500 to-indigo-600 hover:from-teal-600 hover:to-indigo-700 text-white font-bold text-[11px] sm:text-xs shadow-md shrink-0 cursor-pointer gap-1.5"
             >
               {saving ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Send className="mr-1.5 h-3.5 w-3.5" />}
-              Save & Send to Nurse
+              Return to Nurse
             </Button>
           </div>
         </div>
@@ -1602,46 +1557,19 @@ function CaseEditor({
                   </div>
                 </div>
 
-                {/* Actual interactive data inputs for History */}
+                {/* Nurse-entered Information (READ-ONLY for Doctor) */}
                 <div className="grid grid-cols-[1.5fr_1fr_1fr_0.8fr] gap-4 w-full mb-4">
-                  <div className="relative">
-                    <Textarea
-                      rows={3}
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      placeholder="तक्रारी / लक्षणे (Symptoms & Complaints)"
-                      className="w-full text-xs font-serif p-2 rounded-lg border border-amber-300/80 bg-amber-50/20 text-black pr-8 resize-none focus:bg-white"
-                    />
-                    <VoiceButton onTranscript={(val) => setNotes((prev: string) => prev ? prev + " " + val : val)} positionClassName="top-2 right-1.5" />
+                  <div className="p-2.5 rounded-lg border border-amber-300/80 bg-amber-50/20 text-xs font-serif text-black min-h-[50px] whitespace-pre-wrap">
+                    {extractCleanNotes(caseRow.notes || notes, caseRow.nurse?.presentIllness || "") || "—"}
                   </div>
-
-                  <div className="relative">
-                    <Input
-                      value={menstrualHistory}
-                      onChange={(e) => setMenstrualHistory(e.target.value)}
-                      placeholder="पाळीचा इतिहास..."
-                      className="w-full text-xs font-serif p-2 rounded-lg border border-amber-300/80 bg-amber-50/20 text-black pr-8 h-9 focus:bg-white"
-                    />
-                    <VoiceButton onTranscript={(val) => setMenstrualHistory((prev: string) => prev ? prev + " " + val : val)} positionClassName="top-1.5 right-1.5" />
+                  <div className="p-2.5 rounded-lg border border-amber-300/80 bg-amber-50/20 text-xs font-serif text-black min-h-[50px] whitespace-pre-wrap">
+                    {caseRow.menstrual_history || menstrualHistory || "—"}
                   </div>
-
-                  <div className="relative">
-                    <Input
-                      value={pastHistory}
-                      onChange={(e) => setPastHistory(e.target.value)}
-                      placeholder="मागील आजार/इतिहास..."
-                      className="w-full text-xs font-serif p-2 rounded-lg border border-amber-300/80 bg-amber-50/20 text-black pr-8 h-9 focus:bg-white"
-                    />
-                    <VoiceButton onTranscript={(val) => setPastHistory((prev: string) => prev ? prev + " " + val : val)} positionClassName="top-1.5 right-1.5" />
+                  <div className="p-2.5 rounded-lg border border-amber-300/80 bg-amber-50/20 text-xs font-serif text-black min-h-[50px] whitespace-pre-wrap">
+                    {caseRow.past_history || pastHistory || "—"}
                   </div>
-
-                  <div>
-                    <Input
-                      value={weight}
-                      onChange={(e) => setWeight(e.target.value)}
-                      placeholder="e.g. 65 kg"
-                      className="w-full text-xs font-serif p-2 rounded-lg border border-amber-300/80 bg-amber-50/20 text-black h-9 focus:bg-white"
-                    />
+                  <div className="p-2.5 rounded-lg border border-amber-300/80 bg-amber-50/20 text-xs font-serif text-black min-h-[50px] flex items-center">
+                    <span className="font-bold">{caseRow.weight || weight || "—"}</span>
                   </div>
                 </div>
 

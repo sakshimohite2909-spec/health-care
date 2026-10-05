@@ -26,9 +26,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogTrigger, DialogContent, DialogTitle, DialogDescription, DialogHeader } from "@/components/ui/dialog";
-import { calculateAge, statusColor, statusLabel, doctorName, CaseStatus, parseCaseNotes } from "@/lib/case-utils";
+import { calculateAge, statusColor, statusLabel, doctorName, CaseStatus, parseCaseNotes, extractCleanNotes } from "@/lib/case-utils";
 import { generateCasePaperPDF, generatePDFFromElementId, shareCasePaperPDF } from "@/lib/pdf";
-import { FileText, Download, Share2, Loader2, Plus, Stethoscope, Smartphone, ZoomIn, Calendar, Phone, MapPin, User, ClipboardList, Pill, ArrowLeft } from "lucide-react";
+import { FileText, Download, Share2, Loader2, Plus, Stethoscope, Smartphone, ZoomIn, Calendar, Phone, MapPin, User, ClipboardList, Pill, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { VoiceButton } from "@/components/VoiceButton";
 
 export const Route = createFileRoute("/patient")({
@@ -82,22 +82,295 @@ const schema = z.object({
   gender: z.string().optional(),
 });
 
+function CasePaperContent({ c }: { c: any }) {
+  const formattedDob = c.dob ? new Date(c.dob).toLocaleDateString("en-IN") : "";
+  const formattedCreated = c.created_at ? new Date(c.created_at).toLocaleDateString("en-IN") : new Date().toLocaleDateString("en-IN");
+
+  return (
+    <>
+      {/* Top Header Background SVG */}
+      <div className="absolute top-0 left-0 w-full h-[180px] z-0 pointer-events-none">
+        <svg preserveAspectRatio="none" viewBox="0 0 1000 200" className="w-full h-full">
+          <path d="M0,0 L1000,0 L1000,160 Q500,200 0,120 Z" fill="#fbbd08" />
+        </svg>
+      </div>
+
+      {/* Top Header Content */}
+      <div className="relative z-10 w-full px-12 pt-8 pb-4 flex justify-between items-start">
+        {/* Left: Doctor 1 */}
+        <div className="flex-1 mt-1">
+          <div className="font-bold text-black text-[16px] tracking-wide">Dr. Kadambari Jagtap</div>
+          <div className="text-[11px] text-black font-semibold mt-0.5 text-right w-[145px]">MD Ayu. Sch.</div>
+        </div>
+
+        {/* Center: Doctor 2 & Quote */}
+        <div className="flex-1 flex flex-col items-center -mt-2">
+          <div className="text-[14px] font-bold text-black mb-1">॥ श्रीः ॥</div>
+          <div className="font-bold text-black text-[16px] tracking-wide">Dr. Omprasad Jagtap</div>
+          <div className="text-[11px] text-black font-semibold mt-0.5 text-right w-[140px]">MD Ayu.</div>
+          <div className="text-[12px] text-black font-bold mt-4 tracking-wider">स्वास्थ्यरक्षणार्थं...व्याधिमोक्षणार्थं...</div>
+        </div>
+
+        {/* Right: Logo */}
+        <div className="flex-1 flex justify-end">
+          <div className="relative flex items-center justify-center w-[120px] h-[120px] -mt-2">
+            <LogoSVG idPrefix={`case-${c.id}`} />
+          </div>
+        </div>
+      </div>
+
+      {/* Form Content */}
+      <div className="relative z-10 px-12 py-8 flex-1 flex flex-col text-[14px] font-medium leading-relaxed">
+        {/* Name */}
+        <div className="flex mb-6">
+          <span className="font-bold mr-2 whitespace-nowrap">Name :</span>
+          <span className="flex-1 font-semibold">{c.full_name}</span>
+        </div>
+
+        {/* Grid layout matching official format */}
+        <div className="grid grid-cols-[1fr_1.2fr_0.8fr] gap-x-4 gap-y-6 w-full">
+          {/* Row 1 */}
+          <div className="flex">
+            <span className="font-bold mr-2">Date Of Birth:</span>
+            <span className="flex-1 font-semibold">{formattedDob}</span>
+          </div>
+          <div className="flex">
+            <span className="font-bold mr-2">Age & Gender :</span>
+            <span className="flex-1 font-semibold">{c.age} {c.gender ? `/ ${c.gender}` : ""}</span>
+          </div>
+          <div className="flex">
+            <span className="font-bold mr-2">Date :</span>
+            <span className="flex-1 font-semibold">{formattedCreated}</span>
+          </div>
+
+          {/* Row 2 */}
+          <div className="flex">
+            <span className="font-bold mr-2">Phone No. :</span>
+            <span className="flex-1 font-semibold">{c.mobile}</span>
+          </div>
+          <div className="flex">
+            <span className="font-bold mr-2">Married/Unmarried :</span>
+            <span className="flex-1 font-semibold">{c.marital_status}</span>
+          </div>
+          <div className="flex">
+            <span className="font-bold mr-2">Education :</span>
+            <span className="flex-1 font-semibold">{c.education}</span>
+          </div>
+
+          {/* Row 3 & 4 (Address spanning 2 rows on left) */}
+          <div className="col-span-2 row-span-2 flex items-start">
+            <span className="font-bold mr-2 mt-0.5">Address :</span>
+            <span className="flex-1 font-semibold pr-4 whitespace-pre-wrap leading-relaxed">{c.address}</span>
+          </div>
+          <div className="flex">
+            <span className="font-bold mr-2">Occupation :</span>
+            <span className="flex-1 font-semibold">{c.occupation}</span>
+          </div>
+
+          {/* Row 4 right side */}
+          <div className="flex">
+            <span className="font-bold mr-2">Parent's Occu. :</span>
+            <span className="flex-1 font-semibold">{c.parents_occupation}</span>
+          </div>
+        </div>
+
+        {/* History Section - 4 labels spread horizontally */}
+        <div className="grid grid-cols-[1.5fr_1fr_1fr_0.8fr] gap-4 w-full mt-10 mb-2">
+          <div className="flex">
+            <span className="font-bold mr-2">History of present illness :</span>
+          </div>
+          <div className="flex">
+            <span className="font-bold mr-2">पाळीचा इतिहास</span>
+          </div>
+          <div className="flex">
+            <span className="font-bold mr-2">मागील इतिहास</span>
+          </div>
+          <div className="flex">
+            <span className="font-bold mr-2">वजन :</span>
+          </div>
+        </div>
+
+        {/* Actual data for History */}
+        <div className="grid grid-cols-[1.5fr_1fr_1fr_0.8fr] gap-4 w-full mb-6">
+          <div className="font-semibold min-h-[40px] pr-2 whitespace-pre-wrap">{extractCleanNotes(c.notes, c.nurse?.presentIllness || "")}</div>
+          <div className="font-semibold min-h-[40px] pr-2">{c.menstrual_history}</div>
+          <div className="font-semibold min-h-[40px] pr-2">{c.past_history}</div>
+          <div className="font-semibold min-h-[40px]">{c.weight}</div>
+        </div>
+
+        {/* Doctor's Treatment & Prescription Section */}
+        {( (c.dose_medicines && c.dose_medicines.length > 0) || c.prescription || c.medicines || c.tests ) && (
+          <div className="mt-6 pt-4 border-t border-slate-300 flex flex-col gap-4">
+            
+            {/* 1. Prescription & Medicines */}
+            {( (c.dose_medicines && c.dose_medicines.length > 0) || c.medicines ) && (
+              <div>
+                <div className="font-bold text-[13px] text-black mb-1.5 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <span className="font-serif font-bold text-base text-[#b45309]">Rx</span>
+                    <span>Prescription & Medicines (औषधोपचार) :</span>
+                  </span>
+                  {c.dose_medicines && c.dose_medicines.length > 0 && (
+                    <span className="text-[10.5px] bg-amber-100 text-amber-900 font-bold px-2 py-0.5 rounded border border-amber-300 flex items-center gap-1">
+                      <Pill className="h-3 w-3 text-amber-700" />
+                      <span>{c.dose_medicines.length} Medicines</span>
+                    </span>
+                  )}
+                </div>
+
+                {c.dose_medicines && c.dose_medicines.length > 0 ? (
+                  <div className="rounded-lg border border-amber-300 bg-white overflow-hidden shadow-xs">
+                    <table className="w-full text-[11.5px] text-left border-collapse font-sans">
+                      <thead>
+                        <tr className="bg-amber-100/70 border-b border-amber-200 text-black font-bold text-[11px]">
+                          <th className="py-1.5 px-3 w-8 text-center">#</th>
+                          <th className="py-1.5 px-3">औषध (Medicine)</th>
+                          <th className="py-1.5 px-2 text-center w-36">डोस (स-दु-रा)</th>
+                          <th className="py-1.5 px-3 text-center w-24">कालावधी</th>
+                          <th className="py-1.5 px-3">सूचना</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-amber-100/80">
+                        {c.dose_medicines.map((m: any, idx: number) => (
+                          <tr key={m.id || idx} className={idx % 2 === 1 ? "bg-amber-50/30" : "bg-white"}>
+                            <td className="py-1.5 px-3 text-center font-bold text-amber-800 text-[11px] align-middle">
+                              {idx + 1}
+                            </td>
+                            <td className="py-1.5 px-3 font-serif font-bold text-black align-middle">
+                              <div className="text-[12.5px]">{m.name}</div>
+                              {m.strength && (
+                                <span className="inline-block text-[9.5px] font-sans font-normal text-slate-600 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200 mt-0.5">
+                                  {m.strength}
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-1.5 px-2 text-center align-middle whitespace-nowrap">
+                              <span className="inline-block font-mono font-bold text-xs bg-amber-50 text-amber-950 px-2 py-0.5 rounded border border-amber-300">
+                                {m.morning_dose?.replace(' Tablet', '') || "0"} - {m.afternoon_dose?.replace(' Tablet', '') || "0"} - {m.evening_dose?.replace(' Tablet', '') || "0"}
+                              </span>
+                              {m.dose_code && <span className="text-[9.5px] text-slate-500 font-mono ml-1.5">[{m.dose_code}]</span>}
+                            </td>
+                            <td className="py-1.5 px-3 text-center font-semibold text-slate-800 align-middle whitespace-nowrap">
+                              {m.duration}
+                            </td>
+                            <td className="py-1.5 px-3 text-slate-700 italic text-[11px] font-serif align-middle">
+                              {m.instructions || "—"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="whitespace-pre-wrap font-medium text-xs bg-amber-50/40 p-2.5 rounded-lg border border-amber-200 text-black">
+                    {c.medicines}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 2. Clinical Tests */}
+            {c.tests && (
+              <div>
+                <div className="font-bold text-[13px] text-black mb-1">
+                  Clinical Tests (तपासण्या / लॅब टेस्ट) :
+                </div>
+                <div className="whitespace-pre-wrap font-medium text-xs bg-slate-50/70 p-2.5 rounded-lg border border-slate-200 text-black">
+                  {c.tests}
+                </div>
+              </div>
+            )}
+
+            {/* 3. Advice */}
+            {c.prescription && (
+              <div>
+                <div className="font-bold text-[13px] text-black mb-1">
+                  Advice (विशेष सूचना / पथ्य) :
+                </div>
+                <div className="whitespace-pre-wrap font-medium text-xs bg-amber-50/50 p-2.5 rounded-lg border border-amber-200 text-black">
+                  {c.prescription}
+                </div>
+              </div>
+            )}
+
+          </div>
+        )}
+      </div>
+
+      {/* Faint Swoosh Background */}
+      <div className="absolute bottom-[-150px] left-[-150px] w-[600px] h-[600px] bg-[#fbbd08] opacity-[0.04] rounded-full z-0 pointer-events-none"></div>
+
+      {/* Solid Yellow Footer */}
+      <div className="absolute bottom-0 left-0 w-full h-[90px] z-0 pointer-events-none overflow-hidden">
+        <svg preserveAspectRatio="none" viewBox="0 0 1000 100" className="w-full h-full">
+          <path d="M0,100 L0,70 Q500,90 1000,10 L1000,100 Z" fill="#fbbd08" />
+        </svg>
+      </div>
+
+      {/* Consent & Bottom Signatures */}
+      <div className="relative z-10 px-12 pb-16 mt-auto flex flex-col justify-end min-h-[220px]">
+        <div className="text-center font-bold text-[12px] text-black">Concent</div>
+        <div className="text-[10px] text-black leading-tight text-justify mt-1.5 mb-8 font-medium">
+          I, hereby consent to the collection of personal information for medical purposes. This includes demographic details, medical history, and contact information. I understand that this information is essential for accurate diagnosis and treatment planning. I authorize healthcare professionals to administer necessary treatments based on this collected information.I also grant permission for the collection of photos for medical records, research, and promotional activities related to healthcare. These images may be used anonymously to enhance medical understanding, contribute to research initiatives, and for promotional materials. I acknowledge that my personal information and images will be handled with utmost confidentiality and in compliance with applicable privacy laws.
+        </div>
+
+        <div className="flex flex-col mb-2 gap-3">
+          <div className="flex items-end">
+            <span className="font-bold text-[13px] text-black w-[80px]">Name :</span>
+            <span className="font-semibold uppercase text-[13px]">{c.full_name}</span>
+          </div>
+          <div className="flex items-end">
+            <span className="font-bold text-[13px] text-black w-[80px]">Signature :</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom Yellow Footer Content overlay */}
+      <div className="absolute bottom-3 left-0 w-full z-10 px-12 flex flex-col items-end">
+        <div className="flex items-center gap-1.5 text-black font-bold text-[12px] mb-1.5 mr-6">
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+          </svg>
+          9404306548 | 8867303202
+        </div>
+        <div className="text-[11px] text-black font-semibold">
+          Address : Flat No. 106, Shiv City Center, Miraj Sangli Road, Near Vijaynagar Circle, Sangli. 416416
+        </div>
+      </div>
+    </>
+  );
+}
+
 function CasePaperCard({ c, setBusy }: { c: any; setBusy: (b: boolean) => void }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(1);
-  const [isFitMode, setIsFitMode] = useState(true);
-  const [isMobileScreen, setIsMobileScreen] = useState(false);
+  
+  // Calculate initial scale synchronously so mobile renders immediately without crop
+  const getInitialIsMobile = () => (typeof window !== "undefined" ? window.innerWidth < 820 : false);
+  const getInitialScale = () => {
+    if (typeof window === "undefined") return 1;
+    const w = window.innerWidth;
+    if (w < 820) {
+      // Usable width on mobile (screen minus page padding)
+      const available = Math.max(260, w - 24);
+      return Math.min(1, available / 794);
+    }
+    return 1;
+  };
+
+  const [scale, setScale] = useState<number>(getInitialScale);
+  const [isFitMode, setIsFitMode] = useState<boolean>(true);
+  const [isMobileScreen, setIsMobileScreen] = useState<boolean>(getInitialIsMobile);
 
   useEffect(() => {
     const handleResize = () => {
-      if (!containerRef.current) return;
-      const width = containerRef.current.clientWidth;
-      const isMobile = width < 820;
+      const containerWidth = containerRef.current ? containerRef.current.clientWidth : window.innerWidth;
+      const isMobile = window.innerWidth < 820 || containerWidth < 820;
       setIsMobileScreen(isMobile);
 
       if (isFitMode && isMobile) {
-        // Compute scale factor based on container width
-        const computedScale = Math.min(1, Math.max(0.35, (width - 16) / 794));
+        // Measure real available inner width
+        const available = Math.max(260, (containerWidth || window.innerWidth) - 8);
+        const computedScale = Math.min(1, available / 794);
         setScale(computedScale);
       } else {
         setScale(1);
@@ -106,7 +379,17 @@ function CasePaperCard({ c, setBusy }: { c: any; setBusy: (b: boolean) => void }
 
     handleResize();
     window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+
+    let ro: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined" && containerRef.current) {
+      ro = new ResizeObserver(() => handleResize());
+      ro.observe(containerRef.current);
+    }
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      if (ro) ro.disconnect();
+    };
   }, [isFitMode]);
 
   return (
@@ -114,11 +397,11 @@ function CasePaperCard({ c, setBusy }: { c: any; setBusy: (b: boolean) => void }
       {/* Top Header Bar with Status & Mobile Fit/Zoom Toggle */}
       <div className="px-4 py-3 bg-slate-50 dark:bg-slate-900/90 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2">
-          <Badge className={statusColor[c.status as CaseStatus]} variant="outline">
-            {statusLabel[c.status as CaseStatus]}
+          <Badge className={statusColor[c.status as CaseStatus] || "bg-teal-50 text-teal-700 border-teal-300"} variant="outline">
+            {statusLabel[c.status as CaseStatus] || "Submitted"}
           </Badge>
           <span className="font-mono text-xs text-slate-500 dark:text-slate-400 bg-slate-200 dark:bg-slate-800 px-2 py-0.5 rounded font-semibold">
-            ID: {c.id.substring(0, 8).toUpperCase()}
+            ID: {(c.id || "").substring(0, 8).toUpperCase()}
           </span>
         </div>
 
@@ -153,283 +436,63 @@ function CasePaperCard({ c, setBusy }: { c: any; setBusy: (b: boolean) => void }
         )}
       </div>
 
-      {/* Printable Area Wrapper with Dynamic Scaling */}
-      <div ref={containerRef} className="w-full bg-slate-100/70 dark:bg-slate-950/40 p-2 sm:p-4 md:p-6 overflow-hidden">
-        <div
-          className={`w-full flex ${
-            isFitMode && scale < 1 ? "justify-center overflow-hidden" : "overflow-x-auto justify-start xl:justify-center custom-scrollbar"
-          }`}
-          style={{
-            height: isFitMode && scale < 1 ? `${Math.ceil(1123 * scale) + 8}px` : "auto",
-          }}
-        >
-          {/* The actual view (Fixed 794px A4 width to ensure PDF consistency) */}
-          <div
-            id={`case-paper-${c.id}`}
-            style={{
-              transform: isFitMode && scale < 1 ? `scale(${scale})` : "none",
-              transformOrigin: "top center",
-            }}
-            className="bg-white relative flex flex-col overflow-hidden text-black font-serif shadow-lg border border-slate-200 shrink-0 w-[794px] min-w-[794px] min-h-[1123px] rounded-sm"
-          >
-            {/* Top Header Background SVG */}
-            <div className="absolute top-0 left-0 w-full h-[180px] z-0 pointer-events-none">
-              <svg preserveAspectRatio="none" viewBox="0 0 1000 200" className="w-full h-full">
-                <path d="M0,0 L1000,0 L1000,160 Q500,200 0,120 Z" fill="#fbbd08" />
-              </svg>
-            </div>
-
-            {/* Top Header Content */}
-            <div className="relative z-10 w-full px-12 pt-8 pb-4 flex justify-between items-start">
-              {/* Left: Doctor 1 */}
-              <div className="flex-1 mt-1">
-                <div className="font-bold text-black text-[16px] tracking-wide">Dr. Kadambari Jagtap</div>
-                <div className="text-[11px] text-black font-semibold mt-0.5 text-right w-[145px]">MD Ayu. Sch.</div>
-              </div>
-
-              {/* Center: Doctor 2 & Quote */}
-              <div className="flex-1 flex flex-col items-center -mt-2">
-                <div className="text-[14px] font-bold text-black mb-1">॥ श्रीः ॥</div>
-                <div className="font-bold text-black text-[16px] tracking-wide">Dr. Omprasad Jagtap</div>
-                <div className="text-[11px] text-black font-semibold mt-0.5 text-right w-[140px]">MD Ayu.</div>
-                <div className="text-[12px] text-black font-bold mt-4 tracking-wider">स्वास्थ्यरक्षणार्थं...व्याधिमोक्षणार्थं...</div>
-              </div>
-
-              {/* Right: Logo */}
-              <div className="flex-1 flex justify-end">
-                <div className="relative flex items-center justify-center w-[120px] h-[120px] -mt-2">
-                  <LogoSVG idPrefix={`case-${c.id}`} />
-                </div>
-              </div>
-            </div>
-
-            {/* Form Content */}
-            <div className="relative z-10 px-12 py-8 flex-1 flex flex-col text-[14px] font-medium leading-relaxed">
-              {/* Name */}
-              <div className="flex mb-6">
-                <span className="font-bold mr-2 whitespace-nowrap">Name :</span>
-                <span className="flex-1 font-semibold">{c.full_name}</span>
-              </div>
-
-              {/* Grid layout matching official format */}
-              <div className="grid grid-cols-[1fr_1.2fr_0.8fr] gap-x-4 gap-y-6 w-full">
-                {/* Row 1 */}
-                <div className="flex">
-                  <span className="font-bold mr-2">Date Of Birth:</span>
-                  <span className="flex-1 font-semibold">{c.dob ? new Date(c.dob).toLocaleDateString("en-IN") : ""}</span>
-                </div>
-                <div className="flex">
-                  <span className="font-bold mr-2">Age & Gender :</span>
-                  <span className="flex-1 font-semibold">{c.age} {c.gender ? `/ ${c.gender}` : ""}</span>
-                </div>
-                <div className="flex">
-                  <span className="font-bold mr-2">Date :</span>
-                  <span className="flex-1 font-semibold">{new Date(c.created_at).toLocaleDateString("en-IN")}</span>
-                </div>
-
-                {/* Row 2 */}
-                <div className="flex">
-                  <span className="font-bold mr-2">Phone No. :</span>
-                  <span className="flex-1 font-semibold">{c.mobile}</span>
-                </div>
-                <div className="flex">
-                  <span className="font-bold mr-2">Married/Unmarried :</span>
-                  <span className="flex-1 font-semibold">{c.marital_status}</span>
-                </div>
-                <div className="flex">
-                  <span className="font-bold mr-2">Education :</span>
-                  <span className="flex-1 font-semibold">{c.education}</span>
-                </div>
-
-                {/* Row 3 & 4 (Address spanning 2 rows on left) */}
-                <div className="col-span-2 row-span-2 flex items-start">
-                  <span className="font-bold mr-2 mt-0.5">Address :</span>
-                  <span className="flex-1 font-semibold pr-4 whitespace-pre-wrap leading-relaxed">{c.address}</span>
-                </div>
-                <div className="flex">
-                  <span className="font-bold mr-2">Occupation :</span>
-                  <span className="flex-1 font-semibold">{c.occupation}</span>
-                </div>
-
-                {/* Row 4 right side */}
-                <div className="flex">
-                  <span className="font-bold mr-2">Parent's Occu. :</span>
-                  <span className="flex-1 font-semibold">{c.parents_occupation}</span>
-                </div>
-              </div>
-
-              {/* History Section - 4 labels spread horizontally */}
-              <div className="grid grid-cols-[1.5fr_1fr_1fr_0.8fr] gap-4 w-full mt-10 mb-2">
-                <div className="flex">
-                  <span className="font-bold mr-2">History of present illness :</span>
-                </div>
-                <div className="flex">
-                  <span className="font-bold mr-2">पाळीचा इतिहास</span>
-                </div>
-                <div className="flex">
-                  <span className="font-bold mr-2">मागील इतिहास</span>
-                </div>
-                <div className="flex">
-                  <span className="font-bold mr-2">वजन :</span>
-                </div>
-              </div>
-
-              {/* Actual data for History */}
-              <div className="grid grid-cols-[1.5fr_1fr_1fr_0.8fr] gap-4 w-full mb-6">
-                <div className="font-semibold min-h-[40px] pr-2 whitespace-pre-wrap">{c.notes}</div>
-                <div className="font-semibold min-h-[40px] pr-2">{c.menstrual_history}</div>
-                <div className="font-semibold min-h-[40px] pr-2">{c.past_history}</div>
-                <div className="font-semibold min-h-[40px]">{c.weight}</div>
-              </div>
-
-              {/* Doctor's Treatment & Prescription Section */}
-              {( (c.dose_medicines && c.dose_medicines.length > 0) || c.prescription || c.medicines || c.tests ) && (
-                <div className="mt-6 pt-4 border-t border-slate-300 flex flex-col gap-4">
-                  
-                  {/* 1. Prescription & Medicines */}
-                  {( (c.dose_medicines && c.dose_medicines.length > 0) || c.medicines ) && (
-                    <div>
-                      <div className="font-bold text-[13px] text-black mb-1.5 flex items-center justify-between">
-                        <span className="flex items-center gap-1.5">
-                          <span className="font-serif font-bold text-base text-[#b45309]">Rx</span>
-                          <span>Prescription & Medicines (औषधोपचार) :</span>
-                        </span>
-                        {c.dose_medicines && c.dose_medicines.length > 0 && (
-                          <span className="text-[10.5px] bg-amber-100 text-amber-900 font-bold px-2 py-0.5 rounded border border-amber-300 flex items-center gap-1">
-                            <Pill className="h-3 w-3 text-amber-700" />
-                            <span>{c.dose_medicines.length} Medicines</span>
-                          </span>
-                        )}
-                      </div>
-
-                      {c.dose_medicines && c.dose_medicines.length > 0 ? (
-                        <div className="rounded-lg border border-amber-300 bg-white overflow-hidden shadow-xs">
-                          {/* Clean, authentic medical prescription table spanning full width */}
-                          <table className="w-full text-[11.5px] text-left border-collapse font-sans">
-                            <thead>
-                              <tr className="bg-amber-100/70 border-b border-amber-200 text-black font-bold text-[11px]">
-                                <th className="py-1.5 px-3 w-8 text-center">#</th>
-                                <th className="py-1.5 px-3">औषध (Medicine)</th>
-                                <th className="py-1.5 px-2 text-center w-36">डोस (स-दु-रा)</th>
-                                <th className="py-1.5 px-3 text-center w-24">कालावधी</th>
-                                <th className="py-1.5 px-3">सूचना</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-amber-100/80">
-                              {c.dose_medicines.map((m: any, idx: number) => (
-                                <tr key={m.id || idx} className={idx % 2 === 1 ? "bg-amber-50/30" : "bg-white"}>
-                                  <td className="py-1.5 px-3 text-center font-bold text-amber-800 text-[11px] align-middle">
-                                    {idx + 1}
-                                  </td>
-                                  <td className="py-1.5 px-3 font-serif font-bold text-black align-middle">
-                                    <div className="text-[12.5px]">{m.name}</div>
-                                    {m.strength && (
-                                      <span className="inline-block text-[9.5px] font-sans font-normal text-slate-600 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200 mt-0.5">
-                                        {m.strength}
-                                      </span>
-                                    )}
-                                  </td>
-                                  <td className="py-1.5 px-2 text-center align-middle whitespace-nowrap">
-                                    <span className="inline-block font-mono font-bold text-xs bg-amber-50 text-amber-950 px-2 py-0.5 rounded border border-amber-300">
-                                      {m.morning_dose.replace(' Tablet', '')} - {m.afternoon_dose.replace(' Tablet', '')} - {m.evening_dose.replace(' Tablet', '')}
-                                    </span>
-                                    <span className="text-[9.5px] text-slate-500 font-mono ml-1.5">[{m.dose_code}]</span>
-                                  </td>
-                                  <td className="py-1.5 px-3 text-center font-semibold text-slate-800 align-middle whitespace-nowrap">
-                                    {m.duration}
-                                  </td>
-                                  <td className="py-1.5 px-3 text-slate-700 italic text-[11px] font-serif align-middle">
-                                    {m.instructions || "—"}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      ) : (
-                        <div className="whitespace-pre-wrap font-medium text-xs bg-amber-50/40 p-2.5 rounded-lg border border-amber-200 text-black">
-                          {c.medicines}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* 2. Clinical Tests */}
-                  {c.tests && (
-                    <div>
-                      <div className="font-bold text-[13px] text-black mb-1">
-                        Clinical Tests (तपासण्या / लॅब टेस्ट) :
-                      </div>
-                      <div className="whitespace-pre-wrap font-medium text-xs bg-slate-50/70 p-2.5 rounded-lg border border-slate-200 text-black">
-                        {c.tests}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 3. Advice */}
-                  {c.prescription && (
-                    <div>
-                      <div className="font-bold text-[13px] text-black mb-1">
-                        Advice (विशेष सूचना / पथ्य) :
-                      </div>
-                      <div className="whitespace-pre-wrap font-medium text-xs bg-amber-50/50 p-2.5 rounded-lg border border-amber-200 text-black">
-                        {c.prescription}
-                      </div>
-                    </div>
-                  )}
-
-                </div>
-              )}
-            </div>
-
-            {/* Faint Swoosh Background */}
-            <div className="absolute bottom-[-150px] left-[-150px] w-[600px] h-[600px] bg-[#fbbd08] opacity-[0.04] rounded-full z-0 pointer-events-none"></div>
-
-            {/* Solid Yellow Footer */}
-            <div className="absolute bottom-0 left-0 w-full h-[90px] z-0 pointer-events-none overflow-hidden">
-              <svg preserveAspectRatio="none" viewBox="0 0 1000 100" className="w-full h-full">
-                <path d="M0,100 L0,70 Q500,90 1000,10 L1000,100 Z" fill="#fbbd08" />
-              </svg>
-            </div>
-
-            {/* Consent & Bottom Signatures */}
-            <div className="relative z-10 px-12 pb-16 mt-auto flex flex-col justify-end min-h-[220px]">
-              <div className="text-center font-bold text-[12px] text-black">Concent</div>
-              <div className="text-[10px] text-black leading-tight text-justify mt-1.5 mb-8 font-medium">
-                I, hereby consent to the collection of personal information for medical purposes. This includes demographic details, medical history, and contact information. I understand that this information is essential for accurate diagnosis and treatment planning. I authorize healthcare professionals to administer necessary treatments based on this collected information.I also grant permission for the collection of photos for medical records, research, and promotional activities related to healthcare. These images may be used anonymously to enhance medical understanding, contribute to research initiatives, and for promotional materials. I acknowledge that my personal information and images will be handled with utmost confidentiality and in compliance with applicable privacy laws.
-              </div>
-
-              <div className="flex flex-col mb-2 gap-3">
-                <div className="flex items-end">
-                  <span className="font-bold text-[13px] text-black w-[80px]">Name :</span>
-                  <span className="font-semibold uppercase text-[13px]">{c.full_name}</span>
-                </div>
-                <div className="flex items-end">
-                  <span className="font-bold text-[13px] text-black w-[80px]">Signature :</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Bottom Yellow Footer Content overlay */}
-            <div className="absolute bottom-3 left-0 w-full z-10 px-12 flex flex-col items-end">
-              <div className="flex items-center gap-1.5 text-black font-bold text-[12px] mb-1.5 mr-6">
-                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
-                </svg>
-                9404306548 | 8867303202
-              </div>
-              <div className="text-[11px] text-black font-semibold">
-                Address : Flat No. 106, Shiv City Center, Miraj Sangli Road, Near Vijaynagar Circle, Sangli. 416416
+      {/* Printable Area Wrapper with Clean Responsive Scaling */}
+      <div ref={containerRef} className="w-full bg-slate-100/70 dark:bg-slate-950/40 p-2 sm:p-4 overflow-hidden">
+        {isFitMode && isMobileScreen && scale < 1 ? (
+          /* Auto-Fit Container: Scaled down proportionally without any cropping */
+          <div className="w-full flex justify-center items-start overflow-hidden py-1">
+            <div
+              style={{
+                width: `${Math.round(794 * scale)}px`,
+                height: `${Math.round(1123 * scale)}px`,
+                position: "relative",
+                overflow: "hidden",
+                borderRadius: "6px",
+                boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+              }}
+            >
+              <div
+                id={`case-paper-${c.id}`}
+                style={{
+                  width: "794px",
+                  minWidth: "794px",
+                  minHeight: "1123px",
+                  transform: `scale(${scale})`,
+                  transformOrigin: "top left",
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                }}
+                className="bg-white relative flex flex-col text-black font-serif border border-slate-200 select-text"
+              >
+                <CasePaperContent c={c} />
               </div>
             </div>
           </div>
-        </div>
+        ) : (
+          /* Full 100% Size Container: Smooth horizontal & vertical pan/scroll */
+          <div className="w-full overflow-x-auto overflow-y-visible py-2 custom-scrollbar">
+            <div className="min-w-[794px] w-[794px] mx-auto">
+              <div
+                id={`case-paper-${c.id}`}
+                style={{
+                  width: "794px",
+                  minWidth: "794px",
+                  minHeight: "1123px",
+                }}
+                className="bg-white relative flex flex-col text-black font-serif shadow-lg border border-slate-200 rounded-sm"
+              >
+                <CasePaperContent c={c} />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Action Bar */}
       <div className="border-t border-slate-200 dark:border-slate-800 p-4 bg-slate-50 dark:bg-slate-900/90 flex flex-col sm:flex-row justify-between items-center gap-3 rounded-b-2xl">
         <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-          <span>Created on {new Date(c.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span>
+          <span>Created on {c.created_at ? new Date(c.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : new Date().toLocaleDateString("en-IN")}</span>
         </div>
 
         <div className="flex items-center justify-end w-full sm:w-auto gap-2 flex-wrap">
@@ -438,7 +501,7 @@ function CasePaperCard({ c, setBusy }: { c: any; setBusy: (b: boolean) => void }
             onClick={() => {
               setBusy(true);
               try {
-                generatePDFFromElementId(`case-paper-${c.id}`, `Case-Paper-${c.full_name}`);
+                generatePDFFromElementId(`case-paper-${c.id}`, `Case-Paper-${c.full_name || 'Patient'}`);
               } catch (err) {
                 console.error(err);
                 toast.error("Failed to generate PDF.");
@@ -456,7 +519,7 @@ function CasePaperCard({ c, setBusy }: { c: any; setBusy: (b: boolean) => void }
             onClick={() => {
               setBusy(true);
               try {
-                generatePDFFromElementId(`case-paper-${c.id}`, `Case-Paper-${c.full_name}`, "share");
+                generatePDFFromElementId(`case-paper-${c.id}`, `Case-Paper-${c.full_name || 'Patient'}`, "share");
               } catch (err) {
                 console.error(err);
                 toast.error("Share failed.");
@@ -491,8 +554,27 @@ function PatientPage() {
   const [form, setForm] = useState({ full_name: "", address: "", mobile: "", dob: "", notes: "", marital_status: "", education: "", occupation: "", parents_occupation: "", menstrual_history: "", past_history: "", weight: "", gender: "" });
   const [busy, setBusy] = useState(false);
   const [authChecking, setAuthChecking] = useState(true);
+  const [submittedCase, setSubmittedCase] = useState<any | null>(null);
 
   const age = useMemo(() => calculateAge(form.dob), [form.dob]);
+
+  useEffect(() => {
+    // Check if patient already submitted a case paper in this session
+    try {
+      const storedIds = JSON.parse(sessionStorage.getItem("healthbridge_submitted_case_ids") || "[]");
+      if (Array.isArray(storedIds) && storedIds.length > 0 && !submittedCase) {
+        const lastId = storedIds[storedIds.length - 1];
+        getDocs(query(collection(db, "case_papers"), where("__name__", "==", lastId))).then((snap) => {
+          if (!snap.empty) {
+            const data = snap.docs[0].data();
+            setSubmittedCase(parseCaseNotes({ id: lastId, ...data }));
+          }
+        }).catch((err) => console.warn("Could not reload session case", err));
+      }
+    } catch (e) {
+      console.warn("Session storage error", e);
+    }
+  }, []);
 
   useEffect(() => {
     // Ensure form is completely blank whenever user opens the page
@@ -645,32 +727,58 @@ function PatientPage() {
         education: form.education?.trim() || "",
         occupation: form.occupation?.trim() || "",
         parents_occupation: form.parents_occupation?.trim() || "",
-        menstrual_history: form.menstrual_history?.trim() || "",
-        past_history: form.past_history?.trim() || "",
-        weight: form.weight?.trim() || "",
-        notes: JSON.stringify({
-          notes: form.notes?.trim() || "",
-          marital_status: form.marital_status?.trim() || "",
-          education: form.education?.trim() || "",
-          occupation: form.occupation?.trim() || "",
-          parents_occupation: form.parents_occupation?.trim() || "",
-          menstrual_history: form.menstrual_history?.trim() || "",
-          past_history: form.past_history?.trim() || "",
-          weight: form.weight?.trim() || "",
-          gender: form.gender?.trim() || "",
-        }),
+        menstrual_history: "",
+        past_history: "",
+        weight: "",
+        notes: "",
+        prescription: "",
+        medicines: "",
+        tests: "",
+        dose_medicines: [],
         status: "submitted",
+        patient: {
+          name: form.full_name.trim(),
+          dob: form.dob,
+          age,
+          gender: form.gender || "Male",
+          mobile: form.mobile.trim(),
+          maritalStatus: form.marital_status || "Unmarried",
+          education: form.education?.trim() || "",
+          address: form.address.trim(),
+          occupation: form.occupation?.trim() || "",
+          parentOccupation: form.parents_occupation?.trim() || ""
+        },
+        nurse: {
+          presentIllness: "",
+          menstrualHistory: "",
+          pastHistory: "",
+          weight: "",
+          selectedDoctor: ""
+        },
+        doctor: {
+          diagnosis: "",
+          medicines: [],
+          clinicalTests: "",
+          advice: ""
+        },
+        billing: {
+          consultationFee: 0,
+          medicineCharges: 0,
+          labCharges: 0,
+          total: 0,
+          status: "pending"
+        },
         created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       };
 
       await setDoc(newDocRef, caseData);
 
+      const submittedPatientName = form.full_name.trim();
       setForm({ full_name: "", address: "", mobile: "", dob: "", notes: "", marital_status: "", education: "", occupation: "", parents_occupation: "", menstrual_history: "", past_history: "", weight: "", gender: "" });
       setBusy(false);
-      toast.success("केस पेपर व अपॉइंटमेंट यशस्वीरित्या नोंदवली गेली आहे! वैद्यांकडे पाठवला आहे.");
-      
-      // Navigate back to website landing/home page
-      navigate({ to: "/" });
+      setSubmittedCase({ id: newId, ...caseData });
+      toast.success("अपॉइंटमेंट नोंदणी यशस्वी! Case ID: #" + newId.substring(0, 8).toUpperCase());
     } catch (err: any) {
       setBusy(false);
       return toast.error(err.message || "Failed to submit case paper. Please check connection.");
@@ -689,7 +797,7 @@ function PatientPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-4 pb-16 pt-2 md:pt-4 px-2 sm:px-0">
+    <div className="max-w-4xl mx-auto space-y-4 pb-16 pt-2 md:pt-4 px-2 sm:px-0">
       {/* Back to Home Button */}
       <div className="flex items-center justify-between">
         <Button 
@@ -706,6 +814,52 @@ function PatientPage() {
         </span>
       </div>
 
+      {submittedCase ? (
+        <div className="space-y-6">
+          {/* Top Success Banner with Quick Actions */}
+          <div className="bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-emerald-500/15 border border-emerald-500/30 p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 grid place-items-center shrink-0">
+                <CheckCircle2 className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div>
+                <h3 className="text-base sm:text-lg font-bold text-foreground flex items-center gap-2 flex-wrap">
+                  <span>केस पेपर यशस्वीरित्या तयार झाला!</span>
+                  <Badge variant="outline" className="bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-300 font-mono text-xs font-bold">
+                    #{(submittedCase.id || "").substring(0, 8).toUpperCase()}
+                  </Badge>
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  रुग्ण: <strong className="text-foreground uppercase">{submittedCase.full_name}</strong> • प्राथमिक माहिती हॉस्पिटल नर्स डॅशबोर्डमध्ये पाठवली आहे.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-end flex-wrap">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setSubmittedCase(null)}
+                className="rounded-xl text-xs h-9 px-3.5 gap-1.5 font-bold border-slate-300 dark:border-slate-700"
+              >
+                <Plus className="h-3.5 w-3.5" /> दुसरी नोंदणी (New Form)
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => navigate({ to: "/" })}
+                className="rounded-xl text-xs h-9 px-4 bg-teal-600 hover:bg-teal-700 text-white font-bold gap-1.5 shadow-sm"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" /> मुख्य पान (Home)
+              </Button>
+            </div>
+          </div>
+
+          {/* THE GENERATED CASE PAPER - 100% VISIBLE & MOBILE RESPONSIVE */}
+          <CasePaperCard c={submittedCase} setBusy={setBusy} />
+        </div>
+      ) : (
       <Card className="rounded-2xl sm:rounded-3xl p-4 sm:p-7 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:border-white/10 shadow-xl">
         <div className="border-b dark:border-white/5 pb-4">
           <div className="flex items-center gap-3">
@@ -909,6 +1063,7 @@ function PatientPage() {
           </div>
         </form>
       </Card>
+      )}
     </div>
   );
 }

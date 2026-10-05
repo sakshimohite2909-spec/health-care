@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { statusColor, statusLabel, doctorName, CaseStatus, calculateAge, parseCaseNotes, convertLeadToPatient, getDoctorDeduplicationKey } from "@/lib/case-utils";
+import { statusColor, statusLabel, doctorName, CaseStatus, calculateAge, parseCaseNotes, extractCleanNotes, convertLeadToPatient, getDoctorDeduplicationKey } from "@/lib/case-utils";
 import { generateInvoicePDF, generatePDFFromElementId } from "@/lib/pdf";
 import { InvoicePreviewDialog } from "@/components/InvoicePreviewDialog";
 import { 
@@ -344,17 +344,7 @@ function NursePage() {
         menstrual_history: form.menstrual_history?.trim() || "",
         past_history: form.past_history?.trim() || "",
         weight: form.weight?.trim() || "",
-        notes: JSON.stringify({
-          notes: form.notes?.trim() || "",
-          marital_status: form.marital_status || "Unmarried",
-          education: form.education?.trim() || "",
-          occupation: form.occupation?.trim() || "",
-          parents_occupation: form.parents_occupation?.trim() || "",
-          menstrual_history: form.menstrual_history?.trim() || "",
-          past_history: form.past_history?.trim() || "",
-          weight: form.weight?.trim() || "",
-          gender: form.gender || "Male",
-        }),
+        notes: form.notes?.trim() || "",
         status: "submitted",
         created_at: new Date().toISOString(),
       });
@@ -982,7 +972,7 @@ function NursePage() {
                           <div className="flex-1 h-[1px] bg-gradient-to-r from-slate-200 dark:from-white/10 to-transparent" />
                         </div>
                         <AnimatePresence mode="popLayout">
-                          <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-2 xl:grid-cols-2" style={{ gridAutoRows: "1fr", alignItems: "stretch" }}>
+                          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4" style={{ gridAutoRows: "1fr", alignItems: "stretch" }}>
                             {items.map((c) => {
                               const cardIdx = globalCardIndex++;
                               return (
@@ -1088,7 +1078,7 @@ function NurseClinicalEditDialog({
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
-  const [notes, setNotes] = useState(caseRow.notes || "");
+  const [notes, setNotes] = useState(extractCleanNotes(caseRow.notes, caseRow.nurse?.presentIllness || ""));
   const [pastHistory, setPastHistory] = useState(caseRow.past_history || "");
   const [menstrualHistory, setMenstrualHistory] = useState(caseRow.menstrual_history || "");
   const [weight, setWeight] = useState(caseRow.weight || "");
@@ -1096,10 +1086,8 @@ function NurseClinicalEditDialog({
   const [prescription, setPrescription] = useState(caseRow.prescription || "");
   const [medicines, setMedicines] = useState(caseRow.medicines || "");
   const [tests, setTests] = useState(caseRow.tests || "");
-  const [consultationCharge, setConsultationCharge] = useState(Number(caseRow.consultation_charge ?? 0));
-  const [medicineCharge, setMedicineCharge] = useState(Number(caseRow.medicine_charge ?? 0));
-  const [testCharge, setTestCharge] = useState(Number(caseRow.test_charge ?? 0));
-  const [otherCharge, setOtherCharge] = useState(Number(caseRow.other_charge ?? 0));
+
+  const [selectedDoctor, setSelectedDoctor] = useState(caseRow.assigned_doctor || doctorPick?.[caseRow.id] || (doctorsList && doctorsList[0]?.id) || "doctor1");
 
   const isClosingViaBackRef = useRef(false);
 
@@ -1127,7 +1115,7 @@ function NurseClinicalEditDialog({
 
   useEffect(() => {
     if (open) {
-      setNotes(caseRow.notes || "");
+      setNotes(extractCleanNotes(caseRow.notes, caseRow.nurse?.presentIllness || ""));
       setPastHistory(caseRow.past_history || "");
       setMenstrualHistory(caseRow.menstrual_history || "");
       setWeight(caseRow.weight || "");
@@ -1135,56 +1123,91 @@ function NurseClinicalEditDialog({
       setPrescription(caseRow.prescription || "");
       setMedicines(caseRow.medicines || "");
       setTests(caseRow.tests || "");
-      setConsultationCharge(Number(caseRow.consultation_charge ?? 0));
-      setMedicineCharge(Number(caseRow.medicine_charge ?? 0));
-      setTestCharge(Number(caseRow.test_charge ?? 0));
-      setOtherCharge(Number(caseRow.other_charge ?? 0));
+      setSelectedDoctor(caseRow.assigned_doctor || doctorPick?.[caseRow.id] || (doctorsList && doctorsList[0]?.id) || "doctor1");
     }
   }, [open, caseRow]);
 
-  const totalFee = Number(consultationCharge || 0) + Number(medicineCharge || 0) + Number(testCharge || 0) + Number(otherCharge || 0);
+  const handleSendToDoctor = async () => {
+    const chosenDocId = selectedDoctor || doctorPick?.[caseRow.id] || caseRow.assigned_doctor;
+    if (!chosenDocId) {
+      return toast.error("Please select a doctor first");
+    }
+    const allDocs = (doctorsList && doctorsList.length > 0) ? doctorsList : [
+      { id: "doctor1", name: "Dr. Kadambari Jagtap" },
+      { id: "doctor2", name: "Dr. Omprasad Jagtap" }
+    ];
+    const docObj = allDocs.find((d: any) => d.id === chosenDocId);
+    const assignedDocName = docObj ? docObj.name : (doctorName[chosenDocId as "doctor1" | "doctor2"] || "Doctor");
 
-  const handleSave = async (andSendDoctor = false) => {
     setSaving(true);
     try {
-      const updatedNotesJson = JSON.stringify({
+      await updateDoc(doc(db, "case_papers", caseRow.id), {
         notes: notes.trim(),
-        marital_status: caseRow.marital_status || "",
-        education: caseRow.education || "",
-        occupation: caseRow.occupation || "",
-        parents_occupation: caseRow.parents_occupation || "",
         menstrual_history: menstrualHistory.trim(),
         past_history: pastHistory.trim(),
         weight: weight.trim(),
-        gender: caseRow.gender || "",
+        assigned_doctor: chosenDocId,
+        assigned_doctor_name: assignedDocName,
+        status: "sent_to_doctor",
+        nurse: {
+          presentIllness: notes.trim(),
+          menstrualHistory: menstrualHistory.trim(),
+          pastHistory: pastHistory.trim(),
+          weight: weight.trim(),
+          selectedDoctor: chosenDocId
+        },
+        updated_at: serverTimestamp()
       });
 
+      if (setDoctorPick) {
+        setDoctorPick((prev: any) => ({ ...prev, [caseRow.id]: chosenDocId }));
+      }
+
+      toast.success(`Case sent to Dr. ${assignedDocName}!`);
+      setOpen(false);
+    } catch (err: any) {
+      toast.error("Failed to send to doctor: " + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSave = async (sendToDoc?: boolean | unknown) => {
+    if (sendToDoc === true) {
+      return handleSendToDoctor();
+    }
+    setSaving(true);
+    try {
+      const chosenDocId = selectedDoctor || caseRow.assigned_doctor;
+      const allDocs = (doctorsList && doctorsList.length > 0) ? doctorsList : [
+        { id: "doctor1", name: "Dr. Kadambari Jagtap" },
+        { id: "doctor2", name: "Dr. Omprasad Jagtap" }
+      ];
+      const docObj = chosenDocId ? allDocs.find((d: any) => d.id === chosenDocId) : null;
+      const assignedDocName = docObj ? docObj.name : (chosenDocId ? (doctorName[chosenDocId as "doctor1" | "doctor2"] || "Doctor") : null);
+
       const updatePayload: any = {
-        notes: updatedNotesJson,
-        medical_notes: medicalNotes.trim(),
-        prescription: prescription.trim(),
-        medicines: medicines.trim(),
-        tests: tests.trim(),
-        consultation_charge: Number(consultationCharge || 0),
-        medicine_charge: Number(medicineCharge || 0),
-        test_charge: Number(testCharge || 0),
-        other_charge: Number(otherCharge || 0),
-        total_bill: totalFee,
+        notes: notes.trim(),
+        menstrual_history: menstrualHistory.trim(),
+        past_history: pastHistory.trim(),
+        weight: weight.trim(),
+        nurse: {
+          presentIllness: notes.trim(),
+          menstrualHistory: menstrualHistory.trim(),
+          pastHistory: pastHistory.trim(),
+          weight: weight.trim(),
+          selectedDoctor: chosenDocId || ""
+        },
         updated_at: serverTimestamp()
       };
 
+      if (chosenDocId) {
+        updatePayload.assigned_doctor = chosenDocId;
+        if (assignedDocName) updatePayload.assigned_doctor_name = assignedDocName;
+      }
+
       await updateDoc(doc(db, "case_papers", caseRow.id), updatePayload);
       toast.success("रुग्ण तक्रारी व इतिहास सेव्ह झाला (Saved successfully!)");
-      
-      if (andSendDoctor && sendToDoctor) {
-        await sendToDoctor({
-          ...caseRow,
-          notes: notes.trim(),
-          past_history: pastHistory.trim(),
-          menstrual_history: menstrualHistory.trim(),
-          weight: weight.trim(),
-        });
-      }
       setOpen(false);
     } catch (err: any) {
       toast.error("Failed to save clinical details: " + err.message);
@@ -1212,11 +1235,10 @@ function NurseClinicalEditDialog({
         {trigger || (
           <Button
             size="sm"
-            variant="outline"
-            className="rounded-xl text-xs h-9 gap-1.5 border-amber-500/50 bg-amber-500/10 text-amber-900 dark:text-amber-200 hover:bg-amber-500/20 font-bold shadow-sm"
+            className="rounded-xl text-xs h-8 gap-1.5 bg-teal-600 hover:bg-teal-700 text-white font-bold shadow-sm"
           >
-            <FileText className="h-3.5 w-3.5 text-amber-600" />
-            <span>केस पेपर (Case Paper)</span>
+            <FileText className="h-3.5 w-3.5" />
+            <span>Open Case</span>
           </Button>
         )}
       </DialogTrigger>
@@ -1246,50 +1268,33 @@ function NurseClinicalEditDialog({
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap w-full sm:w-auto justify-end pr-8 sm:pr-0">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleDownloadPDF}
-              disabled={downloading}
-              className="rounded-xl h-8 sm:h-9 text-[11px] sm:text-xs gap-1 sm:gap-1.5 border-amber-500/50 text-amber-800 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 font-semibold"
-            >
-              {downloading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5 text-amber-600" />}
-              PDF Download
-            </Button>
-
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => window.print()}
-              className="rounded-xl h-8 sm:h-9 text-[11px] sm:text-xs gap-1 sm:gap-1.5 font-semibold"
-            >
-              <Printer className="h-3.5 w-3.5" /> Print
-            </Button>
-
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => handleSave(false)}
-              disabled={saving}
-              className="rounded-xl h-8 sm:h-9 bg-teal-600 hover:bg-teal-700 text-white text-[11px] sm:text-xs font-semibold shadow-sm"
-            >
-              {saving && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />} Save Details (जतन करा)
-            </Button>
-
+          <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-end pr-8 sm:pr-0">
             {caseRow.status === "submitted" && (
-              <Button
-                type="button"
-                size="sm"
-                onClick={() => handleSave(true)}
-                disabled={saving}
-                className="rounded-xl h-8 sm:h-9 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white font-semibold text-[11px] sm:text-xs shadow-md"
-              >
-                {saving ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Send className="mr-1.5 h-3.5 w-3.5" />}
-                Save & Send to Doctor
-              </Button>
+              <div className="flex items-center gap-2">
+                <Select value={selectedDoctor} onValueChange={setSelectedDoctor}>
+                  <SelectTrigger className="h-8 sm:h-9 text-xs rounded-xl bg-white dark:bg-slate-800 border-slate-200 dark:border-white/10 w-44">
+                    <SelectValue placeholder="Select Doctor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(doctorsList && doctorsList.length > 0 ? doctorsList : [
+                      { id: "doctor1", name: "Dr. Kadambari Jagtap" },
+                      { id: "doctor2", name: "Dr. Omprasad Jagtap" }
+                    ]).map((d: any) => (
+                      <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleSendToDoctor}
+                  disabled={saving}
+                  className="rounded-xl h-8 sm:h-9 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white font-semibold text-[11px] sm:text-xs shadow-md"
+                >
+                  {saving ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Send className="mr-1.5 h-3.5 w-3.5" />}
+                  Send to Doctor
+                </Button>
+              </div>
             )}
           </div>
         </div>
@@ -1594,67 +1599,58 @@ function NurseClinicalEditDialog({
         </div>
       </div>
 
-        {/* Nurse Direct Billing Charges Breakdown Card */}
-        <div className="bg-slate-50/90 dark:bg-black/25 p-5 rounded-2xl border border-slate-200/80 dark:border-white/10 space-y-4 my-4 max-w-[800px] mx-auto w-full shadow-sm">
-          <div className="flex items-center gap-2 border-b border-slate-200/50 dark:border-white/5 pb-2.5">
-            <AlertCircle className="h-4.5 w-4.5 text-teal-600 dark:text-teal-400 animate-pulse" />
-            <span className="font-bold text-xs uppercase tracking-wider text-foreground">Billing Charges Breakdown (बिलिंग तपशील)</span>
-          </div>
-          
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-[11px] font-semibold text-muted-foreground">Consultation (₹)</Label>
-              <Input 
-                type="number" 
-                min="0" 
-                step="0.01" 
-                value={consultationCharge} 
-                onChange={(e) => setConsultationCharge(Number(e.target.value) || 0)} 
-                className="rounded-xl text-xs h-9 focus-visible:ring-teal-500 bg-background border-slate-200 dark:border-white/10"
-              />
-            </div>
-            
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-[11px] font-semibold text-muted-foreground">Medicines (₹)</Label>
-              <Input 
-                type="number" 
-                min="0" 
-                step="0.01" 
-                value={medicineCharge} 
-                onChange={(e) => setMedicineCharge(Number(e.target.value) || 0)} 
-                className="rounded-xl text-xs h-9 focus-visible:ring-teal-500 bg-background border-slate-200 dark:border-white/10"
-              />
-            </div>
 
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-[11px] font-semibold text-muted-foreground">Tests (₹)</Label>
-              <Input 
-                type="number" 
-                min="0" 
-                step="0.01" 
-                value={testCharge} 
-                onChange={(e) => setTestCharge(Number(e.target.value) || 0)} 
-                className="rounded-xl text-xs h-9 focus-visible:ring-teal-500 bg-background border-slate-200 dark:border-white/10"
-              />
-            </div>
 
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-[11px] font-semibold text-muted-foreground">Other (₹)</Label>
-              <Input 
-                type="number" 
-                min="0" 
-                step="0.01" 
-                value={otherCharge} 
-                onChange={(e) => setOtherCharge(Number(e.target.value) || 0)} 
-                className="rounded-xl text-xs h-9 focus-visible:ring-teal-500 bg-background border-slate-200 dark:border-white/10"
-              />
-            </div>
+        {/* Bottom Actions Bar (PDF Download, Print & Save) */}
+        <div className="max-w-[800px] mx-auto w-full flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 pb-2 border-t border-slate-200/80 dark:border-white/10 mt-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleDownloadPDF}
+              disabled={downloading}
+              className="flex-1 sm:flex-initial rounded-xl h-9 px-4 text-xs gap-1.5 border-amber-500/50 text-amber-800 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 font-semibold cursor-pointer shadow-2xs"
+            >
+              {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4 text-amber-600" />}
+              <span>PDF Download</span>
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => window.print()}
+              className="flex-1 sm:flex-initial rounded-xl h-9 px-4 text-xs gap-1.5 font-semibold cursor-pointer shadow-2xs"
+            >
+              <Printer className="h-4 w-4" />
+              <span>Print</span>
+            </Button>
           </div>
 
-          {/* Total Calculation Preview */}
-          <div className="flex items-center justify-between bg-white dark:bg-slate-800/80 p-3.5 rounded-xl border border-slate-200/60 dark:border-white/10">
-            <span className="font-extrabold text-foreground tracking-wide uppercase text-[11px]">Estimated Consultation Total</span>
-            <span className="font-black text-base sm:text-lg text-teal-600 dark:text-teal-400">₹ {totalFee.toFixed(2)}</span>
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => handleSave()}
+              disabled={saving}
+              className="rounded-xl h-9 px-4 bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold shadow-sm cursor-pointer"
+            >
+              {saving && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />} Save Details (जतन करा)
+            </Button>
+
+            {caseRow.status === "submitted" && (
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleSendToDoctor}
+                disabled={saving}
+                className="rounded-xl h-9 px-4 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white font-semibold text-xs shadow-md cursor-pointer"
+              >
+                {saving ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Send className="mr-1.5 h-3.5 w-3.5" />}
+                Save & Send to Doctor
+              </Button>
+            )}
           </div>
         </div>
       </DialogContent>
@@ -1663,10 +1659,8 @@ function NurseClinicalEditDialog({
 }
 
 function PatientCaseCard({ c, doctorPick, setDoctorPick, sendToDoctor, onDelete, doctorsList }: any) {
-  const [expanded, setExpanded] = useState(false);
   const isPending = c.status === "submitted";
   const initials = c.full_name ? c.full_name.split(" ").map((n: string) => n[0]).join("").substring(0, 2).toUpperCase() : "PT";
-  const hasClinicalDetails = Boolean(c.notes || c.past_history || c.menstrual_history);
 
   const relativeTime = useMemo(() => {
     if (!c.created_at) return "Unknown";
@@ -1684,287 +1678,97 @@ function PatientCaseCard({ c, doctorPick, setDoctorPick, sendToDoctor, onDelete,
     <Card 
       style={{ display: "flex", flexDirection: "column", flex: 1, width: "100%", minHeight: 0 }}
       className={`
-      relative bg-white/70 dark:bg-slate-900/60 backdrop-blur-xl border border-white/50 dark:border-white/10 rounded-3xl overflow-hidden h-full flex flex-col flex-1 justify-between
-      ${isPending ? "border-l-4 border-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.1)]" : ""}
+      relative bg-white/70 dark:bg-slate-900/60 backdrop-blur-xl border border-white/50 dark:border-white/10 rounded-2xl overflow-hidden h-full flex flex-col flex-1 justify-between shadow-xs hover:shadow-sm transition-all
+      ${isPending ? "border-l-4 border-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.12)]" : ""}
     `}
     >
-      <CardContent style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }} className="p-5 gap-4 justify-between">
-        <div className="flex items-start justify-between gap-2.5">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary border dark:border-white/5 font-bold text-xs grid place-items-center">
+      <CardContent style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }} className="p-3 sm:p-3.5 gap-2.5 justify-between">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary border dark:border-white/5 font-bold text-xs shrink-0 grid place-items-center">
               {initials}
             </div>
-            <div>
-              <h3 className="font-extrabold text-sm text-foreground uppercase tracking-wide leading-tight">{c.full_name}</h3>
-              <div className="text-[11px] text-muted-foreground mt-0.5 font-medium flex items-center gap-1.5">
-                <Clock className="h-3 w-3" />
+            <div className="min-w-0">
+              <h3 className="font-extrabold text-xs sm:text-sm text-foreground uppercase tracking-wide leading-tight truncate">{c.full_name}</h3>
+              <div className="text-[10px] text-muted-foreground mt-0.5 font-medium flex items-center gap-1">
+                <Clock className="h-2.5 w-2.5 shrink-0" />
                 <span>{relativeTime}</span>
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-1.5 flex-wrap justify-end">
-            <NurseClinicalEditDialog
-              caseRow={c}
-              doctorPick={doctorPick}
-              setDoctorPick={setDoctorPick}
-              sendToDoctor={sendToDoctor}
-              doctorsList={doctorsList}
-              trigger={
-                <Button size="sm" variant="outline" className="h-7 text-xs px-2.5 rounded-xl border-amber-500/50 bg-amber-500/10 text-amber-900 dark:text-amber-200 hover:bg-amber-500/20 font-bold gap-1 shadow-2xs">
-                  <FileText className="h-3 w-3 text-amber-600" /> Case Paper
-                </Button>
-              }
-            />
-            <Badge className={`${statusColor[c.status as CaseStatus] || ""} text-[10px] font-semibold border`} variant="outline">
+          <div className="flex items-center gap-1 shrink-0">
+            <Badge className={`${statusColor[c.status as CaseStatus] || ""} text-[10px] px-2 py-0.5 font-semibold border`} variant="outline">
               {statusLabel[c.status as CaseStatus] || c.status}
             </Badge>
             {onDelete && (
-              <Button variant="ghost" size="icon" onClick={() => onDelete(c.id)} className="h-7 w-7 text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg">
-                <Trash2 className="h-3.5 w-3.5" />
+              <Button variant="ghost" size="icon" onClick={() => onDelete(c.id)} className="h-6 w-6 text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-md">
+                <Trash2 className="h-3 w-3" />
               </Button>
             )}
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 text-xs">
-          <div className="bg-muted/30 border border-muted/50 rounded-xl px-3 py-2 flex flex-col">
-            <span className="text-[9px] uppercase tracking-wide text-muted-foreground">Age / Gender</span>
-            <span className="font-semibold text-foreground mt-0.5 truncate">{String(c.age ?? calculateAge(c.dob))} Y {c.gender ? `/ ${c.gender}` : ''}</span>
+        <div className="grid grid-cols-2 gap-1.5 text-xs bg-muted/20 border border-muted/40 rounded-xl p-2">
+          <div className="flex flex-col">
+            <span className="text-[9px] uppercase tracking-wider text-muted-foreground">Age / Gender</span>
+            <span className="font-semibold text-foreground text-[11px] truncate">{String(c.age ?? calculateAge(c.dob))} Y {c.gender ? `/ ${c.gender}` : ''}</span>
           </div>
-          <div className="bg-muted/30 border border-muted/50 rounded-xl px-3 py-2 flex flex-col">
-            <span className="text-[9px] uppercase tracking-wide text-muted-foreground">Mobile Contact</span>
-            <span className="font-semibold text-foreground mt-0.5 flex items-center gap-1 truncate">
-              <Phone className="h-3 w-3 text-muted-foreground" />
-              <span>{c.mobile || "—"}</span>
+          <div className="flex flex-col">
+            <span className="text-[9px] uppercase tracking-wider text-muted-foreground">Mobile Contact</span>
+            <span className="font-semibold text-foreground text-[11px] flex items-center gap-1 truncate">
+              <Phone className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
+              <span className="truncate">{c.mobile || "—"}</span>
             </span>
           </div>
-          <div className="bg-muted/30 border border-muted/50 rounded-xl px-3 py-2 flex flex-col col-span-2">
-            <span className="text-[9px] uppercase tracking-wide text-muted-foreground">Address</span>
-            <span className="font-semibold text-foreground mt-0.5 truncate">{c.address || "—"}</span>
-          </div>
+          {c.address ? (
+            <div className="flex flex-col col-span-2 pt-1 border-t border-muted/30">
+              <span className="text-[9px] uppercase tracking-wider text-muted-foreground">Address</span>
+              <span className="font-medium text-foreground text-[11px] truncate">{c.address}</span>
+            </div>
+          ) : null}
+          {(c.assigned_doctor_name || c.assigned_doctor) ? (
+            <div className="flex items-center justify-between col-span-2 pt-1 border-t border-muted/30 text-[10px]">
+              <span className="text-muted-foreground">Doctor:</span>
+              <span className="font-semibold text-foreground truncate max-w-[140px]">
+                {c.assigned_doctor_name || doctorName[c.assigned_doctor as "doctor1" | "doctor2"] || "Assigned"}
+              </span>
+            </div>
+          ) : null}
         </div>
 
-        {/* Doctor Assignment / Pick Doctor Section - directly visible on card */}
-        <div className="flex flex-col sm:flex-row items-center gap-2 pt-0.5" onClick={(e) => e.stopPropagation()}>
-          <div className="w-full sm:flex-1">
-            <Select
-              value={doctorPick[c.id] || c.assigned_doctor || ""}
-              onValueChange={async (val) => {
-                setDoctorPick((p: any) => ({ ...p, [c.id]: val }));
-                const allDocs = (doctorsList && doctorsList.length > 0) ? doctorsList : [
-                  { id: "doctor1", name: "Dr. Kadambari Jagtap" },
-                  { id: "doctor2", name: "Dr. Omprasad Jagtap" }
-                ];
-                const docObj = allDocs.find((d: any) => d.id === val);
-                const assignedDocName = docObj ? docObj.name : (doctorName[val as "doctor1" | "doctor2"] || "Doctor");
-                
-                // If not in submitted, update doctor assignment immediately
-                if (c.status !== "submitted") {
-                  try {
-                    await updateDoc(doc(db, "case_papers", c.id), {
-                      assigned_doctor: val,
-                      assigned_doctor_name: assignedDocName,
-                      updated_at: serverTimestamp()
-                    });
-                    toast.success(`Assigned to Dr. ${assignedDocName}`);
-                  } catch (err: any) {
-                    toast.error(err.message);
-                  }
-                }
-              }}
-            >
-              <SelectTrigger className="w-full h-9 rounded-xl font-medium text-xs bg-white dark:bg-slate-800/90 border border-slate-200 dark:border-white/10 shadow-2xs">
-                <SelectValue placeholder="Pick doctor" />
-              </SelectTrigger>
-              <SelectContent>
-                {((doctorsList && doctorsList.length > 0) ? doctorsList : [
-                  { id: "doctor1", name: "Dr. Kadambari Jagtap" },
-                  { id: "doctor2", name: "Dr. Omprasad Jagtap" }
-                ]).map((doc: any) => (
-                  <SelectItem key={doc.id} value={doc.id}>{doc.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        {/* Actions Row: Open Case Button, Billing & Invoices */}
+        <div className="mt-auto pt-1.5 flex flex-wrap items-center gap-1.5 border-t dark:border-white/5" onClick={(e) => e.stopPropagation()}>
+          <NurseClinicalEditDialog
+            caseRow={c}
+            doctorPick={doctorPick}
+            setDoctorPick={setDoctorPick}
+            sendToDoctor={sendToDoctor}
+            doctorsList={doctorsList}
+            trigger={
+              <Button 
+                size="sm" 
+                className="h-7 px-3 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold gap-1.5 shadow-2xs cursor-pointer"
+              >
+                <FileText className="h-3 w-3" />
+                <span>Open Case</span>
+              </Button>
+            }
+          />
 
-          <Button 
-            size="sm" 
-            onClick={(e) => {
-              e.stopPropagation();
-              sendToDoctor(c);
-            }}
-            className="w-full sm:w-auto rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 h-9 font-semibold text-xs text-white shadow-sm shrink-0 px-4"
-          >
-            <Send className="mr-1.5 h-3.5 w-3.5" /> Send to Dr.
-          </Button>
+          <BillingDialog caseRow={c} />
+
+          {c.status === "returned_to_nurse" && (
+            <span className="text-[10px] font-bold text-amber-800 dark:text-amber-200 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-md flex items-center gap-1">
+              Ready for Billing
+            </span>
+          )}
+
+          {c.total_bill ? (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
+              ₹ {Number(c.total_bill).toFixed(2)}
+            </span>
+          ) : null}
         </div>
-
-        {/* Toggle Expand / Collapse Bar - Default Compact View matches Image 2 */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            setExpanded(!expanded);
-          }}
-          className="w-full mt-auto py-2 px-3 rounded-xl bg-slate-100/70 hover:bg-slate-200/70 dark:bg-slate-800/60 dark:hover:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between transition-all cursor-pointer border border-slate-200/60 dark:border-white/5 shadow-2xs hover:shadow-xs"
-        >
-          <span className="flex items-center gap-1.5 text-[11px] font-medium text-slate-600 dark:text-slate-400">
-            <ClipboardList className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
-            <span>{hasClinicalDetails ? "तक्रारी व इतिहास भरले आहेत" : "तक्रारी व माहिती नोंदवा"}</span>
-          </span>
-          <span className="text-[11px] text-teal-700 dark:text-teal-300 font-bold flex items-center gap-1 bg-teal-50 dark:bg-teal-950/60 px-2 py-0.5 rounded-lg border border-teal-200 dark:border-teal-800/60">
-            <span>{expanded ? "माहिती लपवा (Hide)" : "अधिक माहिती उघडा (View Details)"}</span>
-            <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
-          </span>
-        </button>
-
-        {/* Expanded Info & Action Section */}
-        {expanded && (
-          <div className="space-y-4 pt-1 animate-in fade-in-50 duration-200">
-            {/* Patient Details & Clinical History */}
-            <div className="border border-slate-100 dark:border-white/5 rounded-2xl p-3.5 bg-muted/10 space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-[10px] uppercase tracking-wider font-bold text-primary flex items-center gap-1.5">
-                  <ClipboardList className="h-3.5 w-3.5" />
-                  तक्रारी व इतिहास (Complaints & History)
-                </span>
-                <div className="flex items-center gap-2">
-                  <NurseClinicalEditDialog
-                    caseRow={c}
-                    doctorPick={doctorPick}
-                    setDoctorPick={setDoctorPick}
-                    sendToDoctor={sendToDoctor}
-                    doctorsList={doctorsList}
-                    trigger={
-                      <Button size="sm" variant="ghost" className="h-6 text-[10px] px-2 rounded-lg text-teal-700 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-950/50 font-bold">
-                        <Edit3 className="h-3 w-3 mr-1" /> Edit
-                      </Button>
-                    }
-                  />
-                </div>
-              </div>
-
-              {/* Notice if complaints & past history not yet entered */}
-              {!hasClinicalDetails && (
-                <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-2.5 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1.5 text-[11px] text-amber-800 dark:text-amber-300 font-medium">
-                    <AlertCircle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
-                    <span>तक्रारी व इतिहास नोंदवलेले नाहीत</span>
-                  </div>
-                  <NurseClinicalEditDialog
-                    caseRow={c}
-                    doctorPick={doctorPick}
-                    setDoctorPick={setDoctorPick}
-                    sendToDoctor={sendToDoctor}
-                    doctorsList={doctorsList}
-                    trigger={
-                      <Button size="sm" className="h-7 text-[11px] px-2.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold shadow-sm">
-                        + नोंदवा (Add)
-                      </Button>
-                    }
-                  />
-                </div>
-              )}
-
-              {/* Chief Complaints Display */}
-              {c.notes && (
-                <div className="bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/15 rounded-xl p-2.5">
-                  <span className="text-[9px] uppercase tracking-wider font-bold text-amber-700 dark:text-amber-400 block mb-0.5">
-                    Chief Complaints / लक्षणे:
-                  </span>
-                  <p className="text-xs text-foreground leading-relaxed whitespace-pre-line font-medium">
-                    {c.notes}
-                  </p>
-                </div>
-              )}
-
-              {/* Past History Display */}
-              {c.past_history && (
-                <div className="bg-teal-500/5 dark:bg-teal-500/10 border border-teal-500/15 rounded-xl p-2.5">
-                  <span className="text-[9px] uppercase tracking-wider font-bold text-teal-700 dark:text-teal-400 block mb-0.5">
-                    मागील इतिहास (Past History):
-                  </span>
-                  <p className="text-xs text-foreground leading-relaxed font-medium">
-                    {c.past_history}
-                  </p>
-                </div>
-              )}
-
-              {/* Menstrual History Display if any */}
-              {c.menstrual_history && (
-                <div className="bg-pink-500/5 dark:bg-pink-500/10 border border-pink-500/15 rounded-xl p-2.5">
-                  <span className="text-[9px] uppercase tracking-wider font-bold text-pink-700 dark:text-pink-400 block mb-0.5">
-                    पाळीचा इतिहास:
-                  </span>
-                  <p className="text-xs text-foreground leading-relaxed font-medium">
-                    {c.menstrual_history}
-                  </p>
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs pt-2 border-t dark:border-white/5">
-                <div>
-                  <span className="text-[9px] uppercase text-muted-foreground block">Marital Status</span>
-                  <span className="font-semibold text-foreground">{c.marital_status || "—"}</span>
-                </div>
-                <div>
-                  <span className="text-[9px] uppercase text-muted-foreground block">Weight</span>
-                  <span className="font-semibold text-foreground">{c.weight || "—"}</span>
-                </div>
-                <div>
-                  <span className="text-[9px] uppercase text-muted-foreground block">Education</span>
-                  <span className="font-semibold text-foreground">{c.education || "—"}</span>
-                </div>
-                <div>
-                  <span className="text-[9px] uppercase text-muted-foreground block">Occupation</span>
-                  <span className="font-semibold text-foreground">{c.occupation || "—"}</span>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2 pt-2">
-                <NurseClinicalEditDialog
-                  caseRow={c}
-                  doctorPick={doctorPick}
-                  setDoctorPick={setDoctorPick}
-                  sendToDoctor={sendToDoctor}
-                  doctorsList={doctorsList}
-                />
-                <BillingDialog caseRow={c} />
-                {c.total_bill ? (
-                  <span className="inline-flex items-center px-2.5 py-1 rounded-xl text-[11px] font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
-                    ₹ {Number(c.total_bill).toFixed(2)}
-                  </span>
-                ) : null}
-              </div>
-            </div>
-
-            <div className="pt-2 flex flex-col gap-2">
-              {["returned_to_nurse", "billed", "completed"].includes(c.status) && (
-                <div className="flex flex-wrap gap-2">
-                  <InvoicePreviewDialog
-                    caseRow={c}
-                    trigger={
-                      <Button size="sm" variant="outline" className="rounded-xl h-9 text-xs">
-                        <Download className="mr-1.5 h-4 w-4" /> Download Bill
-                      </Button>
-                    }
-                  />
-                  <Button size="sm" variant="outline" onClick={() => {
-                    const tId = toast.loading("Preparing Print...");
-                    try {
-                      generateInvoicePDF(c, "print");
-                      toast.success("Print dialog opened!", { id: tId });
-                    } catch (e: any) {
-                      toast.error(`Failed to print Invoice`, { id: tId });
-                    }
-                  }} className="rounded-xl h-9 text-xs">
-                    <Printer className="mr-1.5 h-4 w-4" /> Print Bill
-                  </Button>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
       </CardContent>
     </Card>
   );
@@ -1973,8 +1777,11 @@ function PatientCaseCard({ c, doctorPick, setDoctorPick, sendToDoctor, onDelete,
 function BillingDialog({ caseRow }: { caseRow: any }) {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [printing, setPrinting] = useState(false);
   const [bill, setBill] = useState({
     consultation_charge: Number(caseRow.consultation_charge ?? 0),
+    procedure_charge: Number(caseRow.procedure_charge ?? 0),
     medicine_charge: Number(caseRow.medicine_charge ?? 0),
     test_charge: Number(caseRow.test_charge ?? 0),
     other_charge: Number(caseRow.other_charge ?? 0),
@@ -1984,6 +1791,7 @@ function BillingDialog({ caseRow }: { caseRow: any }) {
     if (open) {
       setBill({
         consultation_charge: Number(caseRow.consultation_charge ?? 0),
+        procedure_charge: Number(caseRow.procedure_charge ?? 0),
         medicine_charge: Number(caseRow.medicine_charge ?? 0),
         test_charge: Number(caseRow.test_charge ?? 0),
         other_charge: Number(caseRow.other_charge ?? 0),
@@ -1991,20 +1799,50 @@ function BillingDialog({ caseRow }: { caseRow: any }) {
     }
   }, [open, caseRow]);
 
-  const total = Number(bill.consultation_charge || 0) + Number(bill.medicine_charge || 0) + Number(bill.test_charge || 0) + Number(bill.other_charge || 0);
+  const total = 
+    Number(bill.consultation_charge || 0) + 
+    Number(bill.procedure_charge || 0) + 
+    Number(bill.medicine_charge || 0) + 
+    Number(bill.test_charge || 0) + 
+    Number(bill.other_charge || 0);
+
+  const getUpdatedCase = () => ({
+    ...caseRow,
+    consultation_charge: Number(bill.consultation_charge || 0),
+    procedure_charge: Number(bill.procedure_charge || 0),
+    medicine_charge: Number(bill.medicine_charge || 0),
+    test_charge: Number(bill.test_charge || 0),
+    other_charge: Number(bill.other_charge || 0),
+    total_bill: total,
+    status: "billed",
+  });
+
+  const persistBill = async () => {
+    await updateDoc(doc(db, "case_papers", caseRow.id), {
+      consultation_charge: Number(bill.consultation_charge || 0),
+      procedure_charge: Number(bill.procedure_charge || 0),
+      medicine_charge: Number(bill.medicine_charge || 0),
+      test_charge: Number(bill.test_charge || 0),
+      other_charge: Number(bill.other_charge || 0),
+      total_bill: total,
+      billing: {
+        consultationFee: Number(bill.consultation_charge || 0),
+        procedureCharges: Number(bill.procedure_charge || 0),
+        medicineCharges: Number(bill.medicine_charge || 0),
+        labCharges: Number(bill.test_charge || 0),
+        otherCharges: Number(bill.other_charge || 0),
+        total: total,
+        status: "billed"
+      },
+      status: "billed",
+      updated_at: serverTimestamp()
+    });
+  };
 
   const saveBill = async () => {
     setSaving(true);
     try {
-      await updateDoc(doc(db, "case_papers", caseRow.id), {
-        consultation_charge: Number(bill.consultation_charge || 0),
-        medicine_charge: Number(bill.medicine_charge || 0),
-        test_charge: Number(bill.test_charge || 0),
-        other_charge: Number(bill.other_charge || 0),
-        total_bill: total,
-        status: "billed",
-        updated_at: serverTimestamp()
-      });
+      await persistBill();
       toast.success("Bill generated & saved successfully!");
       setOpen(false);
     } catch (err: any) {
@@ -2014,14 +1852,46 @@ function BillingDialog({ caseRow }: { caseRow: any }) {
     }
   };
 
+  const handleDownload = async () => {
+    setDownloading(true);
+    const tId = toast.loading("Saving & preparing invoice PDF...");
+    try {
+      await persistBill();
+      const updated = getUpdatedCase();
+      await generateInvoicePDF(updated, "download");
+      toast.success("Invoice PDF downloaded!", { id: tId });
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Failed to download invoice: " + err.message, { id: tId });
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const handlePrint = async () => {
+    setPrinting(true);
+    const tId = toast.loading("Saving & opening print dialog...");
+    try {
+      await persistBill();
+      const updated = getUpdatedCase();
+      await generateInvoicePDF(updated, "print");
+      toast.success("Print dialog opened!", { id: tId });
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Failed to print invoice: " + err.message, { id: tId });
+    } finally {
+      setPrinting(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" className="rounded-xl h-9 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-sm">
-          <Receipt className="mr-1.5 h-3.5 w-3.5" /> Billing / Checkout
+        <Button size="sm" className="rounded-lg h-7 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-2xs gap-1 cursor-pointer">
+          <Receipt className="h-3 w-3" /> Billing
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-xl w-[94vw] rounded-3xl p-6 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-white/10 shadow-2xl">
+      <DialogContent className="max-w-2xl w-[95vw] rounded-3xl p-6 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-white/10 shadow-2xl">
         <DialogHeader className="border-b border-slate-200/60 dark:border-white/10 pb-3">
           <div className="flex items-center gap-2.5">
             <div className="h-9 w-9 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
@@ -2043,52 +1913,74 @@ function BillingDialog({ caseRow }: { caseRow: any }) {
             <span className="font-bold text-xs uppercase tracking-wider text-foreground">Billing Charges Breakdown</span>
           </div>
           
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            {/* 1. Consultation */}
             <div className="flex flex-col gap-1.5">
-              <Label className="text-[11px] font-semibold text-muted-foreground">Consultation (₹)</Label>
+              <Label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Consultation (₹)</Label>
               <Input 
                 type="number" 
                 min="0" 
                 step="0.01" 
+                placeholder="0.00"
                 value={bill.consultation_charge} 
                 onChange={(e) => setBill({ ...bill, consultation_charge: Number(e.target.value) || 0 })} 
-                className="rounded-xl text-xs h-9 focus-visible:ring-teal-500 bg-background border-slate-200 dark:border-white/10"
+                className="rounded-xl text-xs h-9 focus-visible:ring-teal-500 bg-background border-slate-200 dark:border-white/10 font-semibold"
               />
             </div>
             
+            {/* 2. Procedure ("Processor") */}
             <div className="flex flex-col gap-1.5">
-              <Label className="text-[11px] font-semibold text-muted-foreground">Medicines (₹)</Label>
+              <Label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Procedure (₹)</Label>
               <Input 
                 type="number" 
                 min="0" 
                 step="0.01" 
+                placeholder="0.00"
+                value={bill.procedure_charge} 
+                onChange={(e) => setBill({ ...bill, procedure_charge: Number(e.target.value) || 0 })} 
+                className="rounded-xl text-xs h-9 focus-visible:ring-teal-500 bg-background border-slate-200 dark:border-white/10 font-semibold"
+              />
+            </div>
+
+            {/* 3. Medical / Medicines ("medical") */}
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Medical (₹)</Label>
+              <Input 
+                type="number" 
+                min="0" 
+                step="0.01" 
+                placeholder="0.00"
                 value={bill.medicine_charge} 
                 onChange={(e) => setBill({ ...bill, medicine_charge: Number(e.target.value) || 0 })} 
-                className="rounded-xl text-xs h-9 focus-visible:ring-teal-500 bg-background border-slate-200 dark:border-white/10"
+                className="rounded-xl text-xs h-9 focus-visible:ring-teal-500 bg-background border-slate-200 dark:border-white/10 font-semibold"
               />
             </div>
 
+            {/* 4. Test Charges ("Test charger") */}
             <div className="flex flex-col gap-1.5">
-              <Label className="text-[11px] font-semibold text-muted-foreground">Tests (₹)</Label>
+              <Label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Test Charges (₹)</Label>
               <Input 
                 type="number" 
                 min="0" 
                 step="0.01" 
+                placeholder="0.00"
                 value={bill.test_charge} 
                 onChange={(e) => setBill({ ...bill, test_charge: Number(e.target.value) || 0 })} 
-                className="rounded-xl text-xs h-9 focus-visible:ring-teal-500 bg-background border-slate-200 dark:border-white/10"
+                className="rounded-xl text-xs h-9 focus-visible:ring-teal-500 bg-background border-slate-200 dark:border-white/10 font-semibold"
               />
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-[11px] font-semibold text-muted-foreground">Other (₹)</Label>
+            {/* 5. Other Charges */}
+            <div className="flex flex-col gap-1.5 col-span-2 sm:col-span-1">
+              <Label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Other (₹)</Label>
               <Input 
                 type="number" 
                 min="0" 
                 step="0.01" 
+                placeholder="0.00"
                 value={bill.other_charge} 
                 onChange={(e) => setBill({ ...bill, other_charge: Number(e.target.value) || 0 })} 
-                className="rounded-xl text-xs h-9 focus-visible:ring-teal-500 bg-background border-slate-200 dark:border-white/10"
+                className="rounded-xl text-xs h-9 focus-visible:ring-teal-500 bg-background border-slate-200 dark:border-white/10 font-semibold"
               />
             </div>
           </div>
@@ -2100,14 +1992,50 @@ function BillingDialog({ caseRow }: { caseRow: any }) {
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-2.5 pt-2">
-          <Button variant="outline" onClick={() => setOpen(false)} className="rounded-xl h-10 text-xs font-semibold">
-            Cancel
-          </Button>
-          <Button onClick={saveBill} disabled={saving} className="rounded-xl h-10 px-5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm">
-            {saving ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="mr-1.5 h-4 w-4" />}
-            Save & Mark as Billed
-          </Button>
+        {/* Action buttons footer with separate Download and Print buttons */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-3 border-t border-slate-200/60 dark:border-white/10 mt-2">
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleDownload}
+              disabled={saving || downloading || printing}
+              className="flex-1 sm:flex-initial rounded-xl h-10 px-3.5 text-xs font-semibold border-slate-200 dark:border-white/10 hover:bg-blue-50 dark:hover:bg-blue-950/40 text-blue-700 dark:text-blue-300 gap-1.5 cursor-pointer shadow-2xs"
+            >
+              {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              <span>Download Bill</span>
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handlePrint}
+              disabled={saving || downloading || printing}
+              className="flex-1 sm:flex-initial rounded-xl h-10 px-3.5 text-xs font-semibold border-slate-200 dark:border-white/10 hover:bg-purple-50 dark:hover:bg-purple-950/40 text-purple-700 dark:text-purple-300 gap-1.5 cursor-pointer shadow-2xs"
+            >
+              {printing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
+              <span>Print Bill</span>
+            </Button>
+          </div>
+
+          <div className="flex items-center justify-end gap-2">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => setOpen(false)} 
+              className="rounded-xl h-10 px-4 text-xs font-semibold cursor-pointer"
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="button" 
+              onClick={saveBill} 
+              disabled={saving || downloading || printing} 
+              className="rounded-xl h-10 px-5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm cursor-pointer gap-1.5"
+            >
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+              <span>Save & Mark as Billed</span>
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

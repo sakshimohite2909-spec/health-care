@@ -1,6 +1,6 @@
 import jsPDF from "jspdf";
 import { toPng } from "html-to-image";
-import { HOSPITAL_NAME, doctorName } from "./case-utils";
+import { HOSPITAL_NAME, doctorName, extractCleanNotes } from "./case-utils";
 import type { CaseRow } from "./case-utils";
 
 export async function generatePDFFromElementId(elementId: string, filename: string, action: 'download' | 'share' = 'download') {
@@ -186,7 +186,7 @@ export async function generateCasePaperPDF(c: CaseRow) {
   doc.setFont("helvetica", "bold");
   doc.text("History of present illness:", 14, y);
   doc.setFont("helvetica", "normal");
-  const historyLines = doc.splitTextToSize(c.notes || "-", w - 70);
+  const historyLines = doc.splitTextToSize(extractCleanNotes(c.notes, c.nurse?.presentIllness || "") || "-", w - 70);
   doc.text(historyLines, 65, y);
   y += Math.max(12, historyLines.length * 6 + 4);
   
@@ -398,7 +398,7 @@ export async function shareCasePaperPDF(c: CaseRow) {
   y += 15;
   doc.setFont("helvetica", "bold"); doc.text("History of present illness:", 14, y);
   doc.setFont("helvetica", "normal");
-  const histLines = doc.splitTextToSize(c.notes || "-", w - 70);
+  const histLines = doc.splitTextToSize(extractCleanNotes(c.notes, c.nurse?.presentIllness || "") || "-", w - 70);
   doc.text(histLines, 65, y);
   y += Math.max(12, histLines.length * 6 + 4);
 
@@ -738,8 +738,13 @@ export async function generateInvoicePDF(c: CaseRow, action: "view" | "download"
   if (Number(c.test_charge ?? 0) > 0) {
     activeRows.push({ name: "Investigations / Tests", qty: 1, amount: Number(c.test_charge) });
   }
+
+  // 4. Clinical Procedures
+  if (Number(c.procedure_charge ?? 0) > 0) {
+    activeRows.push({ name: "Clinical Procedure / Treatment", qty: 1, amount: Number(c.procedure_charge) });
+  }
   
-  // 4. Other Charges
+  // 5. Other Charges
   if (Number(c.other_charge ?? 0) > 0) {
     activeRows.push({ name: "Other General Charges", qty: 1, amount: Number(c.other_charge) });
   }

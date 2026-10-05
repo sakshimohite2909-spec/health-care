@@ -83,7 +83,9 @@ import {
   Clock,
   TrendingUp,
   Sparkles,
-  Award
+  Award,
+  Copy,
+  Check
 } from "lucide-react";
 
 // Server function to resolve the local network IP address
@@ -1712,172 +1714,187 @@ function AdminBillingDialog({ caseRow, onSaved }: { caseRow: any; onSaved: () =>
    5. QR CODE SCAN GENERATOR SECTION
    ======================================================== */
 function QrCodeSection() {
-  const [ipOverride, setIpOverride] = useState("https://health-care-chi-three.vercel.app");
-  const [detectedIp, setDetectedIp] = useState("localhost");
-  const [loadingIp, setLoadingIp] = useState(true);
+  const [isDownloading, setIsDownloading] = useState(false);
 
-  useEffect(() => {
-    // Attempt to automatically discover server IP on mount
-    const detect = async () => {
-      try {
-        const ip = await getLocalIpServer();
-        if (ip && ip !== "localhost") {
-          setDetectedIp(ip);
-        }
-      } catch (e) {
-        console.error("IP detect err:", e);
-      } finally {
-        setLoadingIp(false);
-      }
-    };
-    detect();
-  }, []);
+  const hostname = typeof window !== "undefined" ? window.location.hostname : "";
+  const isLocal = hostname === "localhost" || hostname === "127.0.0.1";
+  const finalUrl = isLocal
+    ? "https://health-care-chi-three.vercel.app/patient"
+    : `${typeof window !== "undefined" ? window.location.origin : ""}/patient`;
 
-  const hostname = window.location.hostname;
-  const isLocal = hostname === "localhost" || hostname === "127.0.0.1" || hostname.startsWith("192.") || hostname.startsWith("10.");
-  
-  let finalUrl = `${window.location.origin}/patient`;
-  const currentPort = window.location.port ? `:${window.location.port}` : "";
-  
-  if (ipOverride.trim()) {
-    let override = ipOverride.trim();
-    if (override.endsWith("/")) override = override.slice(0, -1);
-    
-    if (override.startsWith("http")) {
-      finalUrl = `${override}/patient`;
-    } else if (override.includes("ngrok") || override.includes("loca.lt") || override.includes("trycloudflare")) {
-      finalUrl = `https://${override}/patient`;
-    } else {
-      finalUrl = `http://${override}${currentPort}/patient`;
-    }
-  } else if (isLocal && detectedIp !== "localhost") {
-    // If running locally, use Wi-Fi IP so other devices can access over local network
-    finalUrl = `http://${detectedIp}${currentPort}/patient`;
-  }
-
-  const qrCodeImageSrc = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(finalUrl)}`;
+  const qrCodeImageSrc = `https://api.qrserver.com/v1/create-qr-code/?size=450x450&data=${encodeURIComponent(finalUrl)}`;
 
   const printQrCode = () => {
     window.print();
   };
 
+  const downloadQrCode = async () => {
+    setIsDownloading(true);
+    try {
+      const response = await fetch(qrCodeImageSrc);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = `healthease-checkin-qr.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+      toast.success("QR Code downloaded successfully!");
+    } catch (err) {
+      console.error("Download failed:", err);
+      window.open(qrCodeImageSrc, "_blank");
+      toast.info("Opened QR image in a new tab for saving.");
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   return (
-    <Card className="border-0 shadow-xs bg-white dark:bg-slate-950 rounded-xl p-8 max-w-4xl mx-auto min-h-[60vh] flex flex-col print:shadow-none print:p-0 print:border-none print:bg-white">
-      <div className="flex flex-col items-center justify-center flex-1 space-y-12">
-        
-        {/* Header Area */}
-        <div className="text-center space-y-4 print:mb-8">
-          <div className="mx-auto h-16 w-16 bg-teal-50 dark:bg-teal-900/30 rounded-2xl flex items-center justify-center shadow-inner border border-teal-100 dark:border-teal-800/50 print:hidden">
-            <QrCode className="h-8 w-8 text-[#0D7A70] dark:text-teal-400" />
+    <div className="space-y-6 max-w-5xl mx-auto">
+      {/* Top Header with Immediate Print Action */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm print:hidden">
+        <div className="flex items-center gap-3">
+          <div className="h-12 w-12 rounded-xl bg-teal-50 dark:bg-teal-900/30 flex items-center justify-center border border-teal-100 dark:border-teal-800/50">
+            <QrCode className="h-6 w-6 text-[#0D7A70] dark:text-teal-400" />
           </div>
-          <div className="space-y-1.5">
-            <h2 className="text-3xl font-serif font-bold text-slate-800 dark:text-white">Patient Check-In QR</h2>
-            <p className="text-sm text-slate-500 max-w-sm mx-auto leading-relaxed">
-              Scan this code to open the registration form. To allow scanning without Wi-Fi (e.g., mobile data), enter a public URL like ngrok or your deployed domain below.
+          <div>
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white">Patient Check-In QR Scanner</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Print this QR code to place on the reception desk or waiting area for instant patient self-registration.
             </p>
           </div>
         </div>
 
-        {/* Dynamic IP Setting (Hidden on Print) */}
-        <div className="w-full max-w-sm bg-slate-50 dark:bg-slate-900/40 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 print:hidden">
-          <div className="flex justify-between items-center mb-3">
-            <Label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Network Host IP / Ngrok URL</Label>
-            {loadingIp ? (
-              <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200">Detecting...</Badge>
-            ) : detectedIp !== "localhost" ? (
-              <Badge variant="outline" className="bg-teal-50 text-teal-600 border-teal-200">Auto-Detected</Badge>
-            ) : null}
-          </div>
-          <div className="flex gap-2">
-            <Input 
-              placeholder={`e.g. ${detectedIp} or https://xyz.ngrok.app`}
-              value={ipOverride}
-              onChange={(e) => setIpOverride(e.target.value)}
-              className="bg-white dark:bg-black/20 text-center font-mono font-medium shadow-sm"
-            />
-          </div>
-          <p className="text-[10px] text-muted-foreground mt-2.5 text-center px-4">
-            If the auto-detected IP fails, check your WiFi network properties and override it here.
-          </p>
+        {/* Prominent Header Print Button */}
+        <div className="flex items-center gap-2">
+          <Button 
+            onClick={printQrCode}
+            size="default"
+            className="bg-[#0D7A70] hover:bg-[#0a635b] text-white font-semibold shadow-md rounded-xl px-5 h-10 gap-2"
+          >
+            <Printer className="h-4 w-4" />
+            Print Scanner
+          </Button>
+          <Button
+            onClick={downloadQrCode}
+            variant="outline"
+            size="default"
+            disabled={isDownloading}
+            className="rounded-xl border-slate-200 dark:border-slate-700 h-10 gap-2"
+          >
+            <Download className="h-4 w-4" />
+            Download
+          </Button>
         </div>
+      </div>
 
-        {/* Print & Visual Layout Frame */}
-        <div className="relative p-6 rounded-[2rem] bg-white border-2 border-dashed border-teal-200 shadow-xl shadow-teal-900/5 print:border-none print:shadow-none print:p-0 print:w-full print:max-w-none w-full max-w-[340px]">
-          
-          <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-white px-3 text-xs font-bold text-teal-600 uppercase tracking-widest print:hidden">
-            Scan to Check-In
-          </div>
-
-          <div className="flex flex-col items-center bg-white rounded-2xl p-6 border border-slate-100 print:border-4 print:border-teal-700/20 print:p-12 print:rounded-[3rem]">
-            {/* The QR Image */}
-            <div className="relative aspect-square w-full bg-white p-3 border-2 border-teal-50 rounded-xl overflow-hidden print:p-8">
-              <div className="absolute inset-0 border-4 border-teal-500/20 m-4 rounded-xl print:m-8 opacity-50" />
-              <img 
-                src={qrCodeImageSrc} 
-                alt="Check-in QR Code" 
-                className="w-full h-full object-contain relative z-10 p-2"
-                style={{ imageRendering: "pixelated" }}
-              />
-              {/* Corner brackets decoration */}
-              <div className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-teal-600" />
-              <div className="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-teal-600" />
-              <div className="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-teal-600" />
-              <div className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-teal-600" />
-            </div>
-
-            <div className="mt-6 text-center print:mt-10">
-              <div className="text-xl font-black text-slate-800 tracking-tight print:text-4xl">Register Here</div>
-              <p className="text-xs font-medium text-slate-500 mt-1 max-w-[200px] mx-auto print:text-xl print:max-w-[400px] print:mt-4">
-                Point your smartphone camera at this code to open the registration form.
-              </p>
-              
-              <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-center gap-2 text-[10px] font-mono text-slate-400 print:text-lg print:mt-8 print:pt-8 print:border-slate-200">
-                <Globe className="h-3 w-3 print:h-5 print:w-5" />
-                {finalUrl}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <Button 
-          onClick={printQrCode}
-          size="lg"
-          className="bg-slate-900 hover:bg-slate-800 text-white rounded-xl shadow-lg px-8 h-12 print:hidden"
+      {/* The Standee & Scanner Card */}
+      <div className="flex justify-center items-center py-2">
+        {/* Printable Standee Frame */}
+        <div 
+          id="printable-qr-stand"
+          className="relative p-6 rounded-[2rem] bg-white border-2 border-teal-200 shadow-xl shadow-teal-900/5 w-full max-w-[380px] text-center"
         >
-          <Printer className="mr-2 h-5 w-5" />
-          Print Check-In Desk Stand
-        </Button>
+          {/* Top Standee Badge */}
+          <div className="inline-flex items-center gap-1.5 bg-teal-50 border border-teal-200 px-3 py-1 rounded-full text-[11px] font-bold text-[#0D7A70] uppercase tracking-wider mb-4">
+            <HeartPulse className="h-3.5 w-3.5" />
+            <span>HealthEase Medicare</span>
+          </div>
+
+          <div className="text-lg font-black text-slate-800 tracking-tight">
+            Scan to Register & Check-In
+          </div>
+          <p className="text-xs text-slate-500 mt-1 mb-4">
+            पेशंट नोंदणी व टोकनसाठी स्कॅन करा
+          </p>
+
+          {/* QR Image with Corner Frame */}
+          <div className="relative aspect-square w-full bg-white p-4 border-2 border-teal-100 rounded-2xl overflow-hidden shadow-inner">
+            <div className="absolute inset-0 border-4 border-teal-500/10 m-3 rounded-xl" />
+            <img 
+              src={qrCodeImageSrc} 
+              alt="Check-in QR Code" 
+              className="w-full h-full object-contain relative z-10"
+              style={{ imageRendering: "pixelated" }}
+            />
+            {/* Corner brackets decoration */}
+            <div className="absolute top-2.5 left-2.5 w-5 h-5 border-t-2 border-l-2 border-[#0D7A70]" />
+            <div className="absolute top-2.5 right-2.5 w-5 h-5 border-t-2 border-r-2 border-[#0D7A70]" />
+            <div className="absolute bottom-2.5 left-2.5 w-5 h-5 border-b-2 border-l-2 border-[#0D7A70]" />
+            <div className="absolute bottom-2.5 right-2.5 w-5 h-5 border-b-2 border-r-2 border-[#0D7A70]" />
+          </div>
+
+          {/* 3 Step Instruction Guide */}
+          <div className="mt-4 pt-4 border-t border-slate-100 text-left space-y-1.5 text-xs text-slate-600">
+            <div className="flex items-center gap-2">
+              <span className="h-5 w-5 rounded-full bg-teal-100 text-teal-800 flex items-center justify-center font-bold text-[10px] shrink-0">1</span>
+              <span>Open smartphone camera or Google Lens</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="h-5 w-5 rounded-full bg-teal-100 text-teal-800 flex items-center justify-center font-bold text-[10px] shrink-0">2</span>
+              <span>Scan the QR code to open form</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="h-5 w-5 rounded-full bg-teal-100 text-teal-800 flex items-center justify-center font-bold text-[10px] shrink-0">3</span>
+              <span>Fill details & get instant queue token</span>
+            </div>
+          </div>
+
+          {/* Web URL Footer */}
+          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-center gap-1.5 text-[10px] font-mono text-slate-400">
+            <Globe className="h-3 w-3 shrink-0" />
+            <span className="truncate max-w-[260px]">{finalUrl}</span>
+          </div>
+
+          {/* Direct Print Button Directly on Scanner Card */}
+          <div className="mt-5 pt-3 border-t border-slate-100 print:hidden flex flex-col gap-2">
+            <Button 
+              onClick={printQrCode}
+              className="w-full bg-[#0D7A70] hover:bg-[#0a635b] text-white font-bold h-11 rounded-xl shadow-md gap-2"
+            >
+              <Printer className="h-4 w-4" />
+              Print Scanner (प्रिंट करा)
+            </Button>
+          </div>
+        </div>
       </div>
 
       <style dangerouslySetInnerHTML={{__html: `
         @media print {
+          @page {
+            size: A4 portrait;
+            margin: 20mm;
+          }
           body * {
-            visibility: hidden;
+            visibility: hidden !important;
           }
-          .w-full.max-w-\\[340px\\] {
-            visibility: visible;
-            position: absolute;
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -50%);
-            margin: 0 !important;
-            padding: 2rem !important;
-            background: white !important;
-            color: black !important;
-            display: flex !important;
-            flex-direction: column !important;
-            align-items: center !important;
-            text-align: center !important;
-            box-shadow: none !important;
-            width: 100% !important;
-          }
-          .w-full.max-w-\\[340px\\] * {
+          #printable-qr-stand, #printable-qr-stand * {
             visibility: visible !important;
-            color: black !important;
+          }
+          #printable-qr-stand {
+            position: fixed !important;
+            left: 50% !important;
+            top: 50% !important;
+            transform: translate(-50%, -50%) !important;
+            width: 440px !important;
+            max-width: 90% !important;
+            margin: 0 auto !important;
+            padding: 36px 32px !important;
+            border: 4px solid #0D7A70 !important;
+            border-radius: 32px !important;
+            box-shadow: none !important;
+            background: white !important;
+            color: #0f172a !important;
+          }
+          #printable-qr-stand .print\\:hidden {
+            display: none !important;
+            visibility: hidden !important;
           }
         }
       `}}></style>
-    </Card>
+    </div>
   );
 }
 
