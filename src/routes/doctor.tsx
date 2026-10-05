@@ -1006,11 +1006,6 @@ function CaseEditor({
   const [editingMedId, setEditingMedId] = useState<string | null>(null);
   const [isSubmittingMed, setIsSubmittingMed] = useState(false);
 
-  const [consultationCharge, setConsultationCharge] = useState(Number(caseRow?.consultation_charge ?? 0));
-  const [medicineCharge, setMedicineCharge] = useState(Number(caseRow?.medicine_charge ?? 0));
-  const [testCharge, setTestCharge] = useState(Number(caseRow?.test_charge ?? 0));
-  const [otherCharge, setOtherCharge] = useState(Number(caseRow?.other_charge ?? 0));
-
   // Calculated doses based on 3-digit binary dose code
   const currentMorningDose = doseCode[0] === "1" ? "1 Tablet" : "0 Tablet";
   const currentAfternoonDose = doseCode[1] === "1" ? "1 Tablet" : "0 Tablet";
@@ -1040,10 +1035,6 @@ function CaseEditor({
       setMedicines(caseRow.medicines || "");
       setTests(caseRow.tests || "");
       setDoseMedicines(caseRow.dose_medicines || []);
-      setConsultationCharge(Number(caseRow.consultation_charge ?? 0));
-      setMedicineCharge(Number(caseRow.medicine_charge ?? 0));
-      setTestCharge(Number(caseRow.test_charge ?? 0));
-      setOtherCharge(Number(caseRow.other_charge ?? 0));
       setActiveCaseTab("case_paper");
       // Reset med form to completely blank
       setMedName("");
@@ -1054,8 +1045,6 @@ function CaseEditor({
       setEditingMedId(null);
     }
   }, [open, caseRow]);
-
-  const total = Number(consultationCharge || 0) + Number(medicineCharge || 0) + Number(testCharge || 0) + Number(otherCharge || 0);
 
   // Add or update medicine in list
   const handleAddOrUpdateMedicine = (e?: React.FormEvent) => {
@@ -1290,11 +1279,11 @@ function CaseEditor({
         medicines: finalMedicinesText,
         dose_medicines: sanitizedDoseMedicines,
         tests: tests.trim(),
-        consultation_charge: Number(consultationCharge || 0),
-        medicine_charge: Number(medicineCharge || 0),
-        test_charge: Number(testCharge || 0),
-        other_charge: Number(otherCharge || 0),
-        total_bill: total,
+        ...(caseRow.consultation_charge !== undefined ? { consultation_charge: caseRow.consultation_charge } : {}),
+        ...(caseRow.medicine_charge !== undefined ? { medicine_charge: caseRow.medicine_charge } : {}),
+        ...(caseRow.test_charge !== undefined ? { test_charge: caseRow.test_charge } : {}),
+        ...(caseRow.other_charge !== undefined ? { other_charge: caseRow.other_charge } : {}),
+        ...(caseRow.total_bill !== undefined ? { total_bill: caseRow.total_bill } : {}),
         ...(sendBack ? { status: "returned_to_nurse" } : { status: "under_review" }),
         doctor: {
           diagnosis: medicalNotes.trim(),
@@ -2660,69 +2649,6 @@ function CaseEditor({
           </div>
         )}
 
-        {/* Doctor Billing Charges Breakdown Card */}
-        <div className="bg-slate-50/90 dark:bg-black/25 p-4 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-white/10 space-y-4 my-4 max-w-[800px] mx-auto w-full shadow-sm">
-          <div className="flex items-center gap-2 border-b border-slate-200/50 dark:border-white/5 pb-2.5">
-            <AlertCircle className="h-4.5 w-4.5 text-teal-600 dark:text-teal-400 animate-pulse" />
-            <span className="font-bold text-xs uppercase tracking-wider text-foreground">Billing Charges Breakdown (बिलिंग तपशील)</span>
-          </div>
-          
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
-            <div className="flex flex-col gap-1">
-              <Label className="text-[10px] font-bold text-muted-foreground uppercase">Consultation (₹)</Label>
-              <Input 
-                type="number" 
-                min="0" 
-                step="0.01" 
-                value={consultationCharge} 
-                onChange={(e) => setConsultationCharge(Number(e.target.value) || 0)} 
-                className="rounded-xl text-xs h-9 font-bold bg-white dark:bg-slate-900 border-slate-200 dark:border-white/10"
-              />
-            </div>
-            
-            <div className="flex flex-col gap-1">
-              <Label className="text-[10px] font-bold text-muted-foreground uppercase">Medicines (₹)</Label>
-              <Input 
-                type="number" 
-                min="0" 
-                step="0.01" 
-                value={medicineCharge} 
-                onChange={(e) => setMedicineCharge(Number(e.target.value) || 0)} 
-                className="rounded-xl text-xs h-9 font-bold bg-white dark:bg-slate-900 border-slate-200 dark:border-white/10"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <Label className="text-[10px] font-bold text-muted-foreground uppercase">Tests (₹)</Label>
-              <Input 
-                type="number" 
-                min="0" 
-                step="0.01" 
-                value={testCharge} 
-                onChange={(e) => setTestCharge(Number(e.target.value) || 0)} 
-                className="rounded-xl text-xs h-9 font-bold bg-white dark:bg-slate-900 border-slate-200 dark:border-white/10"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <Label className="text-[10px] font-bold text-muted-foreground uppercase">Other (₹)</Label>
-              <Input 
-                type="number" 
-                min="0" 
-                step="0.01" 
-                value={otherCharge} 
-                onChange={(e) => setOtherCharge(Number(e.target.value) || 0)} 
-                className="rounded-xl text-xs h-9 font-bold bg-white dark:bg-slate-900 border-slate-200 dark:border-white/10"
-              />
-            </div>
-          </div>
-
-          {/* Total Calculation Row */}
-          <div className="flex items-center justify-between rounded-xl border bg-white dark:bg-slate-900/60 px-4 py-3 border-slate-200/60 dark:border-white/10">
-            <span className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Estimated Consultation Total</span>
-            <span className="text-xl font-black text-teal-600 dark:text-teal-400">₹ {total.toFixed(2)}</span>
-          </div>
-        </div>
 
         {/* Actions panel */}
         <div className="flex flex-wrap justify-end gap-2 pt-4 border-t border-slate-200/50 dark:border-white/5">

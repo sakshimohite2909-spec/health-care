@@ -362,6 +362,7 @@ function CasePaperCard({ c, setBusy }: { c: any; setBusy: (b: boolean) => void }
   const [contentHeight, setContentHeight] = useState<number>(1123);
   const [isFitMode, setIsFitMode] = useState<boolean>(true);
   const [isMobileScreen, setIsMobileScreen] = useState<boolean>(getInitialIsMobile);
+  const [downloaded, setDownloaded] = useState<boolean>(false);
 
   useEffect(() => {
     const updateDimensions = () => {
@@ -518,10 +519,21 @@ function CasePaperCard({ c, setBusy }: { c: any; setBusy: (b: boolean) => void }
         <div className="flex items-center justify-end w-full sm:w-auto gap-2 flex-wrap">
           {/* Download Button */}
           <Button
-            onClick={() => {
+            onClick={async () => {
               setBusy(true);
               try {
-                generatePDFFromElementId(`case-paper-${c.id}`, `Case-Paper-${c.full_name || 'Patient'}`);
+                await generatePDFFromElementId(`case-paper-${c.id}`, `Case-Paper-${c.full_name || 'Patient'}`);
+                setDownloaded(true);
+                toast.success("केस पेपर PDF डाऊनलोड सुरू झाले आहे!");
+                setTimeout(() => {
+                  try {
+                    if (window.opener) {
+                      window.close();
+                    }
+                  } catch {
+                    // Safe browser handling - leave user on completed case paper
+                  }
+                }, 1500);
               } catch (err) {
                 console.error(err);
                 toast.error("Failed to generate PDF.");
@@ -529,17 +541,18 @@ function CasePaperCard({ c, setBusy }: { c: any; setBusy: (b: boolean) => void }
                 setBusy(false);
               }
             }}
-            className="flex-1 sm:flex-initial gap-1.5 shadow-md bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs h-9 px-3.5"
+            className="flex-1 sm:flex-initial gap-1.5 shadow-md bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs h-9 px-3.5 font-bold"
           >
-            <Download className="h-4 w-4" /> Download PDF
+            {downloaded ? <CheckCircle2 className="h-4 w-4" /> : <Download className="h-4 w-4" />}
+            {downloaded ? "PDF Downloaded" : "Download PDF"}
           </Button>
 
           {/* Share Button */}
           <Button
-            onClick={() => {
+            onClick={async () => {
               setBusy(true);
               try {
-                generatePDFFromElementId(`case-paper-${c.id}`, `Case-Paper-${c.full_name || 'Patient'}`, "share");
+                await generatePDFFromElementId(`case-paper-${c.id}`, `Case-Paper-${c.full_name || 'Patient'}`, "share");
               } catch (err) {
                 console.error(err);
                 toast.error("Share failed.");
@@ -552,16 +565,6 @@ function CasePaperCard({ c, setBusy }: { c: any; setBusy: (b: boolean) => void }
           >
             <Share2 className="h-4 w-4" /> Share
           </Button>
-
-          {/* Done Button */}
-          <Link to="/">
-            <Button
-              variant="ghost"
-              className="rounded-xl text-xs h-9 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold border border-transparent hover:border-slate-300 dark:hover:border-slate-700 px-3"
-            >
-              Done
-            </Button>
-          </Link>
         </div>
       </div>
     </div>
@@ -818,61 +821,41 @@ function PatientPage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-4 pb-16 pt-2 md:pt-4 px-1 sm:px-4">
-      {/* Back to Home Button */}
-      <div className="flex items-center justify-between">
-        <Button 
-          type="button" 
-          variant="ghost" 
-          size="sm" 
-          onClick={() => navigate({ to: "/" })}
-          className="gap-2 text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white rounded-xl"
-        >
-          <ArrowLeft className="w-4 h-4" /> मुख्य पान (Home)
-        </Button>
-        <span className="text-xs text-muted-foreground font-medium">
-          Moolatvam Ayurved
-        </span>
-      </div>
+      {/* Back to Home Button - Only show when filling registration form */}
+      {!submittedCase && (
+        <div className="flex items-center justify-between">
+          <Button 
+            type="button" 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => navigate({ to: "/" })}
+            className="gap-2 text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white rounded-xl"
+          >
+            <ArrowLeft className="w-4 h-4" /> मुख्य पान (Home)
+          </Button>
+          <span className="text-xs text-muted-foreground font-medium">
+            Moolatvam Ayurved
+          </span>
+        </div>
+      )}
 
       {submittedCase ? (
-        <div className="space-y-6">
-          {/* Top Success Banner with Quick Actions */}
-          <div className="bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-emerald-500/15 border border-emerald-500/30 p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 grid place-items-center shrink-0">
-                <CheckCircle2 className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
-              </div>
-              <div>
-                <h3 className="text-base sm:text-lg font-bold text-foreground flex items-center gap-2 flex-wrap">
-                  <span>केस पेपर यशस्वीरित्या तयार झाला!</span>
-                  <Badge variant="outline" className="bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-300 font-mono text-xs font-bold">
-                    #{(submittedCase.id || "").substring(0, 8).toUpperCase()}
-                  </Badge>
-                </h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  रुग्ण: <strong className="text-foreground uppercase">{submittedCase.full_name}</strong> • प्राथमिक माहिती हॉस्पिटल नर्स डॅशबोर्डमध्ये पाठवली आहे.
-                </p>
-              </div>
+        <div className="space-y-4">
+          {/* Top Success Banner */}
+          <div className="bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-emerald-500/15 border border-emerald-500/30 p-4 sm:p-5 rounded-2xl flex items-center gap-3.5 shadow-sm">
+            <div className="w-11 h-11 rounded-2xl bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 grid place-items-center shrink-0">
+              <CheckCircle2 className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
             </div>
-
-            <div className="flex items-center gap-2 w-full sm:w-auto justify-end flex-wrap">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setSubmittedCase(null)}
-                className="rounded-xl text-xs h-9 px-3.5 gap-1.5 font-bold border-slate-300 dark:border-slate-700"
-              >
-                <Plus className="h-3.5 w-3.5" /> दुसरी नोंदणी (New Form)
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                onClick={() => navigate({ to: "/" })}
-                className="rounded-xl text-xs h-9 px-4 bg-teal-600 hover:bg-teal-700 text-white font-bold gap-1.5 shadow-sm"
-              >
-                <ArrowLeft className="h-3.5 w-3.5" /> मुख्य पान (Home)
-              </Button>
+            <div>
+              <h3 className="text-base sm:text-lg font-bold text-foreground flex items-center gap-2 flex-wrap">
+                <span>केस पेपर यशस्वीरित्या तयार झाला!</span>
+                <Badge variant="outline" className="bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-300 font-mono text-xs font-bold">
+                  #{(submittedCase.id || "").substring(0, 8).toUpperCase()}
+                </Badge>
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                रुग्ण: <strong className="text-foreground uppercase">{submittedCase.full_name}</strong> • प्राथमिक माहिती हॉस्पिटल नर्स डॅशबोर्डमध्ये पाठवली आहे.
+              </p>
             </div>
           </div>
 
