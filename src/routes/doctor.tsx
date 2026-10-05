@@ -28,6 +28,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { statusColor, statusLabel, doctorName, CaseStatus, calculateAge, parseCaseNotes, extractCleanNotes, getDoctorDeduplicationKey, DOSE_CODES, COMMON_MEDICINES } from "@/lib/case-utils";
 import type { DoseMedicine } from "@/lib/case-utils";
 import { generatePDFFromElementId } from "@/lib/pdf";
+import { CaseHistoryDialog } from "@/components/CaseHistoryDialog";
+import { PatientSearchSection } from "@/components/PatientSearchSection";
 import { 
   Search, 
   FileText, 
@@ -61,7 +63,8 @@ import {
   RotateCcw,
   Sparkles,
   ChevronDown,
-  ArrowLeft
+  ArrowLeft,
+  History
 } from "lucide-react";
 import { VoiceButton } from "@/components/VoiceButton";
 
@@ -329,10 +332,14 @@ function DoctorPage() {
 
     // Text search query
     if (query.trim()) {
-      const q = query.toLowerCase();
+      const q = query.toLowerCase().trim();
       result = result.filter(c => 
-        c.full_name.toLowerCase().includes(q) || 
-        (c.mobile && c.mobile.includes(q))
+        (c.full_name && c.full_name.toLowerCase().includes(q)) || 
+        (c.mobile && c.mobile.includes(q)) ||
+        (c.patient_id && c.patient_id.toLowerCase().includes(q)) ||
+        (c.patientId && c.patientId.toLowerCase().includes(q)) ||
+        (c.case_paper_id && c.case_paper_id.toLowerCase().includes(q)) ||
+        (c.casePaperId && c.casePaperId.toLowerCase().includes(q))
       );
     }
 
@@ -653,13 +660,16 @@ function DoctorPage() {
             </AnimatedWrapper>
           </div>
 
+          {/* Permanent Patient ID & Case History Staff Search */}
+          <PatientSearchSection allCases={allCases} className="mb-4" />
+
           {/* Search, Filter & Sort Controls Toolbar */}
           <div className="glass border-0 p-3.5 rounded-2xl flex flex-col sm:flex-row items-center gap-3 justify-between shadow-sm">
             {/* Search Input */}
             <div className="relative w-full sm:max-w-md">
               <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-muted-foreground" />
               <Input 
-                placeholder="Search by patient name or phone number..." 
+                placeholder="Search by Patient ID, Name or Mobile Number..." 
                 className="pl-10 pr-4 bg-background/50 border-slate-200/60 dark:border-white/5 rounded-xl h-10 w-full focus-visible:ring-primary focus-visible:border-primary" 
                 value={query} 
                 onChange={(e) => setQuery(e.target.value)} 
@@ -948,6 +958,20 @@ function PatientCaseCard({ c, onAccept, onSaved, meta, onDelete }: { c: any; onA
                 <FileText className="h-3.5 w-3.5 text-teal-600" /> Open Clinical Record (केस पेपर पहा)
               </Button>
             )}
+
+            <div onClick={(e) => e.stopPropagation()} className="w-full">
+              <CaseHistoryDialog caseRow={c} trigger={
+                <Button 
+                  type="button" 
+                  size="sm" 
+                  variant="ghost" 
+                  className="w-full rounded-sm text-xs h-7 text-slate-600 dark:text-slate-400 hover:text-teal-700 hover:bg-teal-50 dark:hover:bg-teal-950/30 gap-1.5 font-medium border border-dashed border-slate-200 dark:border-slate-800 cursor-pointer"
+                >
+                  <History className="h-3.5 w-3.5 text-teal-600" />
+                  <span>Case History</span>
+                </Button>
+              } />
+            </div>
           </div>
 
         </CardContent>
@@ -1346,6 +1370,7 @@ function CaseEditor({
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap w-full sm:w-auto justify-end pr-8 sm:pr-0">
+            <CaseHistoryDialog caseRow={caseRow} />
             <Button
               type="button"
               variant="outline"

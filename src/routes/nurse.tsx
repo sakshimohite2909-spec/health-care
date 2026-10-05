@@ -16,6 +16,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { statusColor, statusLabel, doctorName, CaseStatus, calculateAge, parseCaseNotes, extractCleanNotes, convertLeadToPatient, getDoctorDeduplicationKey } from "@/lib/case-utils";
 import { generateInvoicePDF, generatePDFFromElementId } from "@/lib/pdf";
 import { InvoicePreviewDialog } from "@/components/InvoicePreviewDialog";
+import { CaseHistoryDialog } from "@/components/CaseHistoryDialog";
+import { PatientSearchSection } from "@/components/PatientSearchSection";
+import { getNextPatientId, getNextCasePaperId, createPatientRecord, PatientRecord } from "@/lib/patient-service";
 import { 
   Search, Send, Receipt, Download, Users, ClipboardList, CheckCircle2, 
   Plus, Loader2, FileText, Menu, X, ArrowUpDown, Phone, User, MapPin, 
@@ -223,10 +226,14 @@ function NursePage() {
 
     // Text search query
     if (query.trim()) {
-      const q = query.toLowerCase();
+      const q = query.toLowerCase().trim();
       result = result.filter(c => 
-        c.full_name.toLowerCase().includes(q) || 
-        (c.mobile && c.mobile.includes(q))
+        (c.full_name && c.full_name.toLowerCase().includes(q)) || 
+        (c.mobile && c.mobile.includes(q)) ||
+        (c.patient_id && c.patient_id.toLowerCase().includes(q)) ||
+        (c.patientId && c.patientId.toLowerCase().includes(q)) ||
+        (c.case_paper_id && c.case_paper_id.toLowerCase().includes(q)) ||
+        (c.casePaperId && c.casePaperId.toLowerCase().includes(q))
       );
     }
 
@@ -322,6 +329,29 @@ function NursePage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const age = useMemo(() => calculateAge(form.dob), [form.dob]);
 
+  const [existingPatientIdToUse, setExistingPatientIdToUse] = useState<string>("");
+
+  const handleStartNewVisitFromSearch = (patient: PatientRecord) => {
+    setExistingPatientIdToUse(patient.patientId);
+    setForm({
+      full_name: patient.name || patient.full_name || "",
+      address: patient.address || "",
+      mobile: patient.mobile || "",
+      dob: patient.dob || "",
+      gender: patient.gender || "Male",
+      marital_status: patient.marital_status || "Unmarried",
+      education: patient.education || "",
+      occupation: patient.occupation || "",
+      parents_occupation: patient.parents_occupation || "",
+      menstrual_history: "",
+      past_history: "",
+      weight: "",
+      notes: "",
+    });
+    setIsDialogOpen(true);
+    toast.info(`Preparing new visit for patient: ${patient.name} (${patient.patientId})`);
+  };
+
   const submitNewCase = async (e: React.FormEvent) => {
     e.preventDefault();
     const r = caseSchema.safeParse(form);
@@ -329,8 +359,72 @@ function NursePage() {
     if (!user) return toast.error("Authentication required");
     setBusy(true);
     try {
+      let patientIdToUse = existingPatientIdToUse;
+      
+      // If not explicitly set from existing patient selection, check by mobile & name
+      if (!patientIdToUse) {
+        try {
+          const cleanMob = form.mobile.trim();
+          const normName = form.full_name.trim().toLowerCase();
+          if (cleanMob) {
+            // Check patients collection
+            const patSnap = await getDocs(fsQuery(collection(db, "patients"), where("mobile", "==", cleanMob)));
+            if (!patSnap.empty) {
+              const match = patSnap.docs.find(d => (d.data()?.name || d.data()?.full_name || "").toLowerCase() === normName) || patSnap.docs[0];
+              patientIdToUse = match.data()?.patientId || match.data()?.patient_id || match.id;
+            }
+            // Also check case_papers collection
+            if (!patientIdToUse) {
+              const prevCasesSnap = await getDocs(fsQuery(collection(db, "case_papers"), where("mobile", "==", cleanMob)));
+              if (!prevCasesSnap.empty) {
+                const match = prevCasesSnap.docs.find(d => (d.data()?.full_name || "").toLowerCase() === normName) || prevCasesSnap.docs[0];
+                const existingId = match.data()?.patient_id || match.data()?.patientId;
+                if (existingId) {
+                  patientIdToUse = existingId;
+                }
+              }
+            }
+          }
+        } catch (err) {
+          console.warn("Could not check previous patient id in nurse:", err);
+        }
+      }
+
+      // If still no patient ID, generate a permanent unique one (e.g. PT-000001)
+      if (!patientIdToUse) {
+        patientIdToUse = await getNextPatientId();
+        try {
+          await createPatientRecord({
+            customPatientId: patientIdToUse,
+            name: form.full_name.trim(),
+            mobile: form.mobile.trim(),
+            dob: form.dob,
+            age,
+            gender: form.gender || "Male",
+            address: form.address.trim(),
+            marital_status: form.marital_status || "Unmarried",
+            education: form.education?.trim() || "",
+            occupation: form.occupation?.trim() || "",
+            parents_occupation: form.parents_occupation?.trim() || "",
+          });
+        } catch (patSaveErr) {
+          console.warn("Could not save initial patient record in nurse:", patSaveErr);
+        }
+      }
+
+      // Generate sequential visit Case Paper ID (e.g. CP-2026-0001)
+      let casePaperIdToUse = `CP-${new Date().getFullYear()}-0001`;
+      try {
+        casePaperIdToUse = await getNextCasePaperId();
+      } catch (cpErr) {
+        console.warn("Could not generate case paper id:", cpErr);
+      }
+
       await addDoc(collection(db, "case_papers"), {
-        patient_id: user.uid,
+        patient_id: patientIdToUse,
+        patientId: patientIdToUse,
+        case_paper_id: casePaperIdToUse,
+        casePaperId: casePaperIdToUse,
         full_name: form.full_name.trim(),
         address: form.address.trim(),
         mobile: form.mobile.trim(),
@@ -348,7 +442,8 @@ function NursePage() {
         status: "submitted",
         created_at: new Date().toISOString(),
       });
-      toast.success("Patient Case Paper created successfully");
+      toast.success(`Patient Case Paper created: ${casePaperIdToUse} (Patient ID: ${patientIdToUse})`);
+      setExistingPatientIdToUse("");
       setForm({
         full_name: "",
         address: "",
@@ -896,11 +991,18 @@ function NursePage() {
             />
           ) : (
             <>
+              {/* Permanent Patient ID & Case History Staff Search */}
+              <PatientSearchSection 
+                allCases={cases} 
+                onCreateNewVisit={handleStartNewVisitFromSearch}
+                className="mb-4"
+              />
+
               <div className="glass border dark:border-white/5 p-3.5 rounded-2xl flex flex-col sm:flex-row items-center gap-3 justify-between shadow-sm">
                 <div className="relative w-full sm:max-w-md">
                   <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-muted-foreground" />
                   <Input 
-                    placeholder="Search patient name or mobile..." 
+                    placeholder="Search by Patient ID, Name or Mobile Number..." 
                     className="pl-10 pr-4 bg-background/50 border-slate-200/60 dark:border-white/5 rounded-xl h-10 w-full focus-visible:ring-primary focus-visible:border-primary" 
                     value={query} 
                     onChange={(e) => setQuery(e.target.value)} 
@@ -1269,6 +1371,7 @@ function NurseClinicalEditDialog({
           </div>
 
           <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-end pr-8 sm:pr-0">
+            <CaseHistoryDialog caseRow={caseRow} />
             {caseRow.status === "submitted" && (
               <div className="flex items-center gap-2">
                 <Select value={selectedDoctor} onValueChange={setSelectedDoctor}>
@@ -1754,6 +1857,8 @@ function PatientCaseCard({ c, doctorPick, setDoctorPick, sendToDoctor, onDelete,
               </Button>
             }
           />
+
+          <CaseHistoryDialog caseRow={c} />
 
           <BillingDialog caseRow={c} />
 

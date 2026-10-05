@@ -19,6 +19,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { getHomepageSettings, saveHomepageSettingsToFirestore, subscribeHomepageSettings, HomepageSettings, ServiceItem, DoctorItem, StatItem } from "@/lib/settings";
 import { generateInvoicePDF } from "@/lib/pdf";
 import { InvoicePreviewDialog } from "@/components/InvoicePreviewDialog";
+import { CaseHistoryDialog } from "@/components/CaseHistoryDialog";
+import { PatientSearchSection } from "@/components/PatientSearchSection";
 import { statusColor, statusLabel, doctorName, CaseStatus, calculateAge, parseCaseNotes, convertLeadToPatient, getDoctorDeduplicationKey } from "@/lib/case-utils";
 import * as Lucide from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
@@ -85,7 +87,8 @@ import {
   Sparkles,
   Award,
   Copy,
-  Check
+  Check,
+  History
 } from "lucide-react";
 
 // Server function to resolve the local network IP address
@@ -182,6 +185,7 @@ function AdminPage() {
     {
       title: "Clinic Operations",
       items: [
+        { value: "case_history", label: "Patient Case History", icon: History },
         { value: "staff", label: "Manage Staff", icon: Users },
         { value: "leads", label: "Lead Management", icon: Layers },
       ],
@@ -381,6 +385,10 @@ function AdminPage() {
           <Tabs value={activeTab} className="w-full">
             <TabsContent value="dashboard" className="outline-none mt-0">
               <DashboardSection cases={cases} loading={loading} />
+            </TabsContent>
+            <TabsContent value="case_history" className="outline-none mt-0 space-y-6">
+              <PatientSearchSection allCases={cases} />
+              <InvoiceSection />
             </TabsContent>
             <TabsContent value="website" className="outline-none mt-0">
               <WebsiteSection />
@@ -655,6 +663,64 @@ function DashboardSection({ cases, loading }: { cases: any[]; loading: boolean }
         </Card>
         </motion.div>
       </div>
+
+      {/* Staff Patient Search & History */}
+      <PatientSearchSection allCases={cases} className="mt-6" />
+
+      {/* Recent Patient Case Papers & History */}
+      <Card className="border border-slate-200/60 dark:border-slate-850/80 shadow-2xs bg-white dark:bg-slate-950 rounded-2xl p-5 mt-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-850">
+          <div>
+            <CardTitle className="text-base sm:text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+              <History className="h-5 w-5 text-teal-600 dark:text-teal-400" />
+              <span>Patient Case Papers & History (रुग्ण केस पेपर्स व इतिहास)</span>
+            </CardTitle>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Click &quot;Case History&quot; on any patient to view their previous visits and read-only records.
+            </p>
+          </div>
+          <Badge variant="outline" className="bg-teal-50 text-teal-800 dark:bg-teal-950 dark:text-teal-300 border-teal-300 font-semibold text-xs">
+            {cases.length} Total Patients / Cases
+          </Badge>
+        </div>
+
+        <div className="divide-y divide-slate-100 dark:divide-slate-800/60 mt-2">
+          {cases.length === 0 ? (
+            <div className="py-8 text-center text-xs text-muted-foreground italic">
+              No registered patients yet.
+            </div>
+          ) : (
+            cases.slice(0, 10).map((c: any) => (
+              <div key={c.id} className="py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 hover:bg-slate-50/60 dark:hover:bg-slate-900/40 px-2 rounded-xl transition-colors">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-extrabold text-sm text-foreground uppercase tracking-wide">
+                      {c.full_name}
+                    </span>
+                    <span className="font-mono text-xs text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded font-semibold">
+                      #{(c.id || "").substring(0, 8).toUpperCase()}
+                    </span>
+                    <Badge variant="outline" className={`text-[10px] py-0 px-2 ${statusColor[c.status as keyof typeof statusColor] || "bg-slate-100"}`}>
+                      {statusLabel[c.status as keyof typeof statusLabel] || c.status}
+                    </Badge>
+                  </div>
+                  <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
+                    <span>Phone: <strong className="text-foreground">{c.mobile || "-"}</strong></span>
+                    <span>•</span>
+                    <span>Date: <strong>{c.created_at ? new Date(c.created_at).toLocaleDateString("en-IN") : "-"}</strong></span>
+                    <span>•</span>
+                    <span>Doctor: <strong>{c.assigned_doctor_name || "Dr. Kadambari Jagtap"}</strong></span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                  <CaseHistoryDialog caseRow={c} allCases={cases} />
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </Card>
     </div>
   );
 }
@@ -1598,6 +1664,7 @@ function InvoiceSection() {
                 </div>
 
                 <div className="flex items-center justify-end gap-2 pt-2">
+                  <CaseHistoryDialog caseRow={c} allCases={cases} />
                   <AdminBillingDialog caseRow={c} onSaved={() => {}} />
                   {(c.status === "billed" || c.status === "returned_to_nurse") && (
                     <div className="flex gap-2">

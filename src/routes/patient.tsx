@@ -30,6 +30,7 @@ import { calculateAge, statusColor, statusLabel, doctorName, CaseStatus, parseCa
 import { generateCasePaperPDF, generatePDFFromElementId, shareCasePaperPDF } from "@/lib/pdf";
 import { FileText, Download, Share2, Loader2, Plus, Stethoscope, Smartphone, ZoomIn, Calendar, Phone, MapPin, User, ClipboardList, Pill, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { VoiceButton } from "@/components/VoiceButton";
+import { getNextPatientId, getNextCasePaperId, createPatientRecord } from "@/lib/patient-service";
 
 export const Route = createFileRoute("/patient")({
   component: () => (
@@ -62,7 +63,7 @@ const LOGO_SVG_STRING = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10
   <path d="M 42 67 C 54 65 70 51 70 51" stroke="black" stroke-width="1.2" fill="none" stroke-linecap="round" />
 </svg>`;
 
-const LogoSVG = ({ idPrefix = "logo" }: { idPrefix?: string }) => {
+export const LogoSVG = ({ idPrefix = "logo" }: { idPrefix?: string }) => {
   return <img src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(LOGO_SVG_STRING)}`} className="w-full h-full drop-shadow-lg" alt="Logo" />;
 };
 
@@ -82,7 +83,7 @@ const schema = z.object({
   gender: z.string().optional(),
 });
 
-function CasePaperContent({ c }: { c: any }) {
+export function CasePaperContent({ c }: { c: any }) {
   const formattedDob = c.dob ? new Date(c.dob).toLocaleDateString("en-IN") : "";
   const formattedCreated = c.created_at ? new Date(c.created_at).toLocaleDateString("en-IN") : new Date().toLocaleDateString("en-IN");
 
@@ -738,8 +739,71 @@ function PatientPage() {
         sessionStorage.setItem("healthbridge_submitted_case_ids", JSON.stringify([newId]));
       }
 
+      // 1. Check if this patient already has a permanent patient_id from a previous visit
+      let patientIdToUse = "";
+      try {
+        const cleanMob = form.mobile.trim();
+        const normName = form.full_name.trim().toLowerCase();
+        
+        // Check patients collection first
+        if (cleanMob) {
+          const patientsSnap = await getDocs(query(collection(db, "patients"), where("mobile", "==", cleanMob)));
+          if (!patientsSnap.empty) {
+            const match = patientsSnap.docs.find(d => (d.data()?.name || d.data()?.full_name || "").toLowerCase() === normName) || patientsSnap.docs[0];
+            patientIdToUse = match.data()?.patientId || match.data()?.patient_id || match.id;
+          }
+        }
+        
+        // Also check case_papers collection
+        if (!patientIdToUse && cleanMob) {
+          const prevCasesSnap = await getDocs(query(collection(db, "case_papers"), where("mobile", "==", cleanMob)));
+          if (!prevCasesSnap.empty) {
+            const match = prevCasesSnap.docs.find(d => (d.data()?.full_name || "").toLowerCase() === normName) || prevCasesSnap.docs[0];
+            const existingId = match.data()?.patient_id || match.data()?.patientId;
+            if (existingId) {
+              patientIdToUse = existingId;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("Could not check previous patient id:", err);
+      }
+
+      // If brand new patient, generate sequential unique Patient ID (e.g. PT-000001)
+      if (!patientIdToUse) {
+        patientIdToUse = await getNextPatientId();
+        try {
+          await createPatientRecord({
+            customPatientId: patientIdToUse,
+            name: form.full_name.trim(),
+            mobile: form.mobile.trim(),
+            dob: form.dob,
+            age,
+            gender: form.gender || "Male",
+            address: form.address.trim(),
+            marital_status: form.marital_status || "Unmarried",
+            education: form.education?.trim() || "",
+            occupation: form.occupation?.trim() || "",
+            parents_occupation: form.parents_occupation?.trim() || "",
+          });
+        } catch (savePatErr) {
+          console.warn("Could not save initial patient record:", savePatErr);
+        }
+      }
+
+      // Generate sequential visit Case Paper ID (e.g. CP-2026-0001)
+      let casePaperIdToUse = `CP-${new Date().getFullYear()}-0001`;
+      try {
+        casePaperIdToUse = await getNextCasePaperId();
+      } catch (cpErr) {
+        console.warn("Could not generate case paper id:", cpErr);
+      }
+
       const caseData = {
-        patient_id: patientUid,
+        patient_id: patientIdToUse,
+        patientId: patientIdToUse,
+        case_paper_id: casePaperIdToUse,
+        casePaperId: casePaperIdToUse,
         full_name: form.full_name.trim(),
         address: form.address.trim(),
         mobile: form.mobile.trim(),
