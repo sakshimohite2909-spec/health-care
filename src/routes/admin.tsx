@@ -1892,39 +1892,6 @@ function QrCodeSection() {
             <div className="absolute bottom-2.5 left-2.5 w-5 h-5 border-b-2 border-l-2 border-[#0D7A70]" />
             <div className="absolute bottom-2.5 right-2.5 w-5 h-5 border-b-2 border-r-2 border-[#0D7A70]" />
           </div>
-
-          {/* 3 Step Instruction Guide */}
-          <div className="mt-4 pt-4 border-t border-slate-100 text-left space-y-1.5 text-xs text-slate-600">
-            <div className="flex items-center gap-2">
-              <span className="h-5 w-5 rounded-full bg-teal-100 text-teal-800 flex items-center justify-center font-bold text-[10px] shrink-0">1</span>
-              <span>Open smartphone camera or Google Lens</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="h-5 w-5 rounded-full bg-teal-100 text-teal-800 flex items-center justify-center font-bold text-[10px] shrink-0">2</span>
-              <span>Scan the QR code to open form</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="h-5 w-5 rounded-full bg-teal-100 text-teal-800 flex items-center justify-center font-bold text-[10px] shrink-0">3</span>
-              <span>Fill details & get instant queue token</span>
-            </div>
-          </div>
-
-          {/* Web URL Footer */}
-          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-center gap-1.5 text-[10px] font-mono text-slate-400">
-            <Globe className="h-3 w-3 shrink-0" />
-            <span className="truncate max-w-[260px]">{finalUrl}</span>
-          </div>
-
-          {/* Direct Print Button Directly on Scanner Card */}
-          <div className="mt-5 pt-3 border-t border-slate-100 print:hidden flex flex-col gap-2">
-            <Button 
-              onClick={printQrCode}
-              className="w-full bg-[#0D7A70] hover:bg-[#0a635b] text-white font-bold h-11 rounded-xl shadow-md gap-2"
-            >
-              <Printer className="h-4 w-4" />
-              Print Scanner (प्रिंट करा)
-            </Button>
-          </div>
         </div>
       </div>
 

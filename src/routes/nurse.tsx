@@ -107,7 +107,7 @@ function NursePage() {
   const [cases, setCases] = useState<any[]>([]);
   const [leads, setLeads] = useState<any[]>([]);
   const [query, setQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"all" | "pending" | "returned" | "billed" | "leads">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "pending" | "returned" | "billed" | "leads" | "search">("all");
   const [sortBy, setSortBy] = useState<"newest" | "oldest" | "name">("newest");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [doctorPick, setDoctorPick] = useState<Record<string, string>>({});
@@ -573,6 +573,19 @@ function NursePage() {
             colorClass="text-teal-500"
             glow={leads.filter(l => l.status === "New Lead").length > 0}
           />
+
+          <div className="pt-2 mt-1 border-t border-slate-200/60 dark:border-white/5">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-1 mb-1">
+              Patient Database
+            </p>
+            <SidebarNavItem 
+              icon={Search} 
+              label="Patient Search & History" 
+              active={activeTab === "search"} 
+              onClick={() => { setActiveTab("search"); setSidebarOpen(false); }}
+              colorClass="text-teal-600 dark:text-teal-400"
+            />
+          </div>
         </div>
 
         <div className="mt-4">
@@ -947,18 +960,24 @@ function NursePage() {
             <div>
               <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight flex items-center gap-2">
                 <span className="bg-gradient-to-r from-primary via-teal-500 to-emerald-600 bg-clip-text text-transparent drop-shadow-sm">
-                  {activeTab === "leads" ? "My Leads" : "Nurse Station"}
+                  {activeTab === "leads" 
+                    ? "My Leads" 
+                    : activeTab === "search" 
+                      ? "Patient Search & History" 
+                      : "Nurse Station"}
                 </span>
               </h1>
               <p className="text-sm text-muted-foreground mt-0.5">
                 {activeTab === "leads" 
                   ? "Manage and follow up on patient leads assigned to you."
-                  : counts.pending > 0 
-                    ? `You have ${counts.pending} new patient visits waiting to be assigned.` 
-                    : "All patients are assigned to doctors. Great job!"}
+                  : activeTab === "search"
+                    ? "Search permanent patient IDs, past case history, and register return visits."
+                    : counts.pending > 0 
+                      ? `You have ${counts.pending} new patient visits waiting to be assigned.` 
+                      : "All patients are assigned to doctors. Great job!"}
               </p>
             </div>
-            {activeTab !== "leads" && (
+            {activeTab !== "leads" && activeTab !== "search" && (
               <div className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm max-w-fit">
                 <TrendingUp className="h-4 w-4" />
                 <span>Today's Progress: {counts.billed} Billed</span>
@@ -973,7 +992,7 @@ function NursePage() {
               <AnimatedWrapper index={2}><StatCard label="Converted" value={leads.filter(l => l.status === "Converted").length} icon={CheckCircle2} color="from-emerald-500/15 to-emerald-500/5 text-emerald-600 dark:text-emerald-400" /></AnimatedWrapper>
               <AnimatedWrapper index={3}><StatCard label="Closed" value={leads.filter(l => l.status === "Closed").length} icon={X} color="from-slate-500/15 to-slate-500/5 text-slate-700 dark:text-slate-400" /></AnimatedWrapper>
             </div>
-          ) : (
+          ) : activeTab === "search" ? null : (
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 auto-rows-fr items-stretch">
               <AnimatedWrapper index={0}><StatCard label="Total Cases" value={counts.all} icon={Users} color="from-sky-500/15 to-sky-500/5 text-sky-600 dark:text-sky-400" /></AnimatedWrapper>
               <AnimatedWrapper index={1}><StatCard label="New / Pending" value={counts.pending} icon={User} color="from-amber-500/15 to-amber-500/5 text-amber-600 dark:text-amber-400" pulse={counts.pending > 0} /></AnimatedWrapper>
@@ -989,20 +1008,18 @@ function NursePage() {
               user={user} 
               profileName={currentNurseName} 
             />
+          ) : activeTab === "search" ? (
+            <PatientSearchSection 
+              allCases={cases} 
+              onCreateNewVisit={handleStartNewVisitFromSearch}
+            />
           ) : (
             <>
-              {/* Permanent Patient ID & Case History Staff Search */}
-              <PatientSearchSection 
-                allCases={cases} 
-                onCreateNewVisit={handleStartNewVisitFromSearch}
-                className="mb-4"
-              />
-
               <div className="glass border dark:border-white/5 p-3.5 rounded-2xl flex flex-col sm:flex-row items-center gap-3 justify-between shadow-sm">
                 <div className="relative w-full sm:max-w-md">
                   <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-muted-foreground" />
                   <Input 
-                    placeholder="Search by Patient ID, Name or Mobile Number..." 
+                    placeholder="Search visits by ID, patient name or mobile..." 
                     className="pl-10 pr-4 bg-background/50 border-slate-200/60 dark:border-white/5 rounded-xl h-10 w-full focus-visible:ring-primary focus-visible:border-primary" 
                     value={query} 
                     onChange={(e) => setQuery(e.target.value)} 
@@ -1108,7 +1125,7 @@ function NursePage() {
 interface SidebarNavItemProps {
   icon: any;
   label: string;
-  count: number;
+  count?: number;
   active: boolean;
   onClick: () => void;
   colorClass?: string;
@@ -1130,13 +1147,15 @@ function SidebarNavItem({ icon: Icon, label, count, active, onClick, colorClass 
         <Icon className={`h-4.5 w-4.5 shrink-0 ${active ? "text-primary" : colorClass} transition-colors group-hover:scale-105`} />
         <span>{label}</span>
       </div>
-      <span className={`
-        px-2 py-0.5 font-mono text-[10px] rounded-full shrink-0 font-bold
-        ${active ? "bg-primary/25 text-primary-foreground dark:bg-primary/30" : "bg-muted text-muted-foreground"}
-        ${glow ? "animate-pulse bg-amber-500/20 text-amber-700 dark:text-amber-400" : ""}
-      `}>
-        {count}
-      </span>
+      {count !== undefined && (
+        <span className={`
+          px-2 py-0.5 font-mono text-[10px] rounded-full shrink-0 font-bold
+          ${active ? "bg-primary/25 text-primary-foreground dark:bg-primary/30" : "bg-muted text-muted-foreground"}
+          ${glow ? "animate-pulse bg-amber-500/20 text-amber-700 dark:text-amber-400" : ""}
+        `}>
+          {count}
+        </span>
+      )}
     </button>
   );
 }
