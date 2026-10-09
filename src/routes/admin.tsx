@@ -88,7 +88,8 @@ import {
   Award,
   Copy,
   Check,
-  History
+  History,
+  Wifi
 } from "lucide-react";
 
 // Server function to resolve the local network IP address
@@ -1783,11 +1784,17 @@ function AdminBillingDialog({ caseRow, onSaved }: { caseRow: any; onSaved: () =>
 function QrCodeSection() {
   const [isDownloading, setIsDownloading] = useState(false);
 
-  const hostname = typeof window !== "undefined" ? window.location.hostname : "";
-  const isLocal = hostname === "localhost" || hostname === "127.0.0.1";
-  const finalUrl = isLocal
-    ? "https://health-care-chi-three.vercel.app/patient"
-    : `${typeof window !== "undefined" ? window.location.origin : ""}/patient`;
+  // Dynamic host determination
+  const detectedHost = typeof window !== "undefined" ? window.location.hostname : "localhost";
+  const detectedPort = typeof window !== "undefined" && window.location.port ? `:${window.location.port}` : ":8080";
+  const defaultWifiIp = detectedHost === "localhost" || detectedHost === "127.0.0.1" ? "192.168.1.116" : detectedHost;
+  const wifiUrl = `http://${defaultWifiIp}${detectedPort}/patient`;
+  const vercelUrl = "https://health-care-chi-three.vercel.app/patient";
+
+  const [urlMode, setUrlMode] = useState<"wifi" | "vercel" | "custom">("wifi");
+  const [customUrl, setCustomUrl] = useState(wifiUrl);
+
+  const finalUrl = urlMode === "wifi" ? wifiUrl : urlMode === "vercel" ? vercelUrl : customUrl;
 
   const qrCodeImageSrc = `https://api.qrserver.com/v1/create-qr-code/?size=450x450&data=${encodeURIComponent(finalUrl)}`;
 
@@ -1854,6 +1861,75 @@ function QrCodeSection() {
             <Download className="h-4 w-4" />
             Download
           </Button>
+        </div>
+      </div>
+
+      {/* URL Selector Card - print:hidden */}
+      <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm print:hidden space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+              <QrCode className="h-4 w-4 text-teal-600" />
+              <span>QR Destination URL (स्कॅन केल्यावर उघडणारी लिंक)</span>
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              वाय-फाय नेटवर्कवर टेस्ट करण्यासाठी &quot;Clinic WiFi (Local)&quot; निवडा किंवा लाइव्ह वेबसाइटसाठी &quot;Vercel Cloud&quot; निवडा.
+            </p>
+          </div>
+          
+          <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+            <button
+              type="button"
+              onClick={() => { setUrlMode("wifi"); setCustomUrl(wifiUrl); }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                urlMode === "wifi" 
+                  ? "bg-white dark:bg-slate-700 text-[#0D7A70] dark:text-teal-400 shadow-xs" 
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+              }`}
+            >
+              <Wifi className="h-3.5 w-3.5" />
+              <span>Clinic WiFi (Local)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => { setUrlMode("vercel"); setCustomUrl(vercelUrl); }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                urlMode === "vercel" 
+                  ? "bg-white dark:bg-slate-700 text-[#0D7A70] dark:text-teal-400 shadow-xs" 
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+              }`}
+            >
+              <Globe className="h-3.5 w-3.5" />
+              <span>Vercel Cloud</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setUrlMode("custom")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                urlMode === "custom" 
+                  ? "bg-white dark:bg-slate-700 text-[#0D7A70] dark:text-teal-400 shadow-xs" 
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+              }`}
+            >
+              <Edit3 className="h-3.5 w-3.5" />
+              <span>Custom URL</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Input
+            value={urlMode === "custom" ? customUrl : finalUrl}
+            onChange={(e) => {
+              setCustomUrl(e.target.value);
+              if (urlMode !== "custom") setUrlMode("custom");
+            }}
+            placeholder="https://..."
+            className="font-mono text-xs h-9 bg-slate-50 dark:bg-slate-950/50 rounded-xl"
+          />
+          <Badge variant="outline" className="text-[11px] py-1 px-2.5 shrink-0 bg-teal-50 dark:bg-teal-950 text-[#0D7A70] dark:text-teal-400 border-teal-200">
+            Active QR: {urlMode.toUpperCase()}
+          </Badge>
         </div>
       </div>
 
