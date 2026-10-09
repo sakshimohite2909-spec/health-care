@@ -1789,12 +1789,12 @@ function QrCodeSection() {
   const detectedPort = typeof window !== "undefined" && window.location.port ? `:${window.location.port}` : ":8080";
   const defaultWifiIp = detectedHost === "localhost" || detectedHost === "127.0.0.1" ? "192.168.1.116" : detectedHost;
   const wifiUrl = `http://${defaultWifiIp}${detectedPort}/patient`;
-  const vercelUrl = "https://health-care-chi-three.vercel.app/patient";
+  const vercelUrl = "https://health-care-sigma-three.vercel.app/patient";
 
-  const [urlMode, setUrlMode] = useState<"wifi" | "vercel" | "custom">("wifi");
-  const [customUrl, setCustomUrl] = useState(wifiUrl);
+  const [urlMode, setUrlMode] = useState<"wifi" | "vercel" | "custom">("vercel");
+  const [customUrl, setCustomUrl] = useState(vercelUrl);
 
-  const finalUrl = urlMode === "wifi" ? wifiUrl : urlMode === "vercel" ? vercelUrl : customUrl;
+  const finalUrl = urlMode === "vercel" ? vercelUrl : urlMode === "wifi" ? wifiUrl : customUrl;
 
   const qrCodeImageSrc = `https://api.qrserver.com/v1/create-qr-code/?size=450x450&data=${encodeURIComponent(finalUrl)}`;
 
@@ -1873,23 +1873,11 @@ function QrCodeSection() {
               <span>QR Destination URL (स्कॅन केल्यावर उघडणारी लिंक)</span>
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              वाय-फाय नेटवर्कवर टेस्ट करण्यासाठी &quot;Clinic WiFi (Local)&quot; निवडा किंवा लाइव्ह वेबसाइटसाठी &quot;Vercel Cloud&quot; निवडा.
+              लाइव्ह Vercel वेबसाइटसाठी &quot;Vercel Cloud&quot; निवडा किंवा लोकल टेस्टसाठी &quot;Clinic WiFi&quot; निवडा.
             </p>
           </div>
           
           <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
-            <button
-              type="button"
-              onClick={() => { setUrlMode("wifi"); setCustomUrl(wifiUrl); }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                urlMode === "wifi" 
-                  ? "bg-white dark:bg-slate-700 text-[#0D7A70] dark:text-teal-400 shadow-xs" 
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
-              }`}
-            >
-              <Wifi className="h-3.5 w-3.5" />
-              <span>Clinic WiFi (Local)</span>
-            </button>
             <button
               type="button"
               onClick={() => { setUrlMode("vercel"); setCustomUrl(vercelUrl); }}
@@ -1901,6 +1889,18 @@ function QrCodeSection() {
             >
               <Globe className="h-3.5 w-3.5" />
               <span>Vercel Cloud</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => { setUrlMode("wifi"); setCustomUrl(wifiUrl); }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                urlMode === "wifi" 
+                  ? "bg-white dark:bg-slate-700 text-[#0D7A70] dark:text-teal-400 shadow-xs" 
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+              }`}
+            >
+              <Wifi className="h-3.5 w-3.5" />
+              <span>Clinic WiFi (Local)</span>
             </button>
             <button
               type="button"
