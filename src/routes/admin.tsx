@@ -93,7 +93,7 @@ import {
 } from "lucide-react";
 
 // Server function to resolve the local network IP address
-export const getLocalIpServer = async () => {
+const getLocalIpServer = async () => {
   return "localhost";
 };
 
