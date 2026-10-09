@@ -83,7 +83,7 @@ const schema = z.object({
   gender: z.string().optional(),
 });
 
-export function CasePaperContent({ c }: { c: any }) {
+export function CasePaperContent({ c, showClinicalHistory = true }: { c: any; showClinicalHistory?: boolean }) {
   const formattedDob = c.dob ? new Date(c.dob).toLocaleDateString("en-IN") : "";
   const formattedCreated = c.created_at ? new Date(c.created_at).toLocaleDateString("en-IN") : new Date().toLocaleDateString("en-IN");
 
@@ -175,29 +175,33 @@ export function CasePaperContent({ c }: { c: any }) {
           </div>
         </div>
 
-        {/* History Section - 4 labels spread horizontally */}
-        <div className="grid grid-cols-[1.5fr_1fr_1fr_0.8fr] gap-4 w-full mt-10 mb-2">
-          <div className="flex">
-            <span className="font-bold mr-2">History of present illness :</span>
-          </div>
-          <div className="flex">
-            <span className="font-bold mr-2">पाळीचा इतिहास</span>
-          </div>
-          <div className="flex">
-            <span className="font-bold mr-2">मागील इतिहास</span>
-          </div>
-          <div className="flex">
-            <span className="font-bold mr-2">वजन :</span>
-          </div>
-        </div>
+        {/* History Section - 4 labels spread horizontally (Shown in Nurse/Doctor Dashboard, hidden for QR patient registration) */}
+        {showClinicalHistory && (
+          <>
+            <div className="grid grid-cols-[1.5fr_1fr_1fr_0.8fr] gap-4 w-full mt-10 mb-2">
+              <div className="flex">
+                <span className="font-bold mr-2">History of present illness :</span>
+              </div>
+              <div className="flex">
+                <span className="font-bold mr-2">पाळीचा इतिहास</span>
+              </div>
+              <div className="flex">
+                <span className="font-bold mr-2">मागील इतिहास</span>
+              </div>
+              <div className="flex">
+                <span className="font-bold mr-2">वजन :</span>
+              </div>
+            </div>
 
-        {/* Actual data for History */}
-        <div className="grid grid-cols-[1.5fr_1fr_1fr_0.8fr] gap-4 w-full mb-6">
-          <div className="font-semibold min-h-[40px] pr-2 whitespace-pre-wrap">{extractCleanNotes(c.notes, c.nurse?.presentIllness || "")}</div>
-          <div className="font-semibold min-h-[40px] pr-2">{c.menstrual_history}</div>
-          <div className="font-semibold min-h-[40px] pr-2">{c.past_history}</div>
-          <div className="font-semibold min-h-[40px]">{c.weight}</div>
-        </div>
+            {/* Actual data for History */}
+            <div className="grid grid-cols-[1.5fr_1fr_1fr_0.8fr] gap-4 w-full mb-6">
+              <div className="font-semibold min-h-[40px] pr-2 whitespace-pre-wrap">{extractCleanNotes(c.notes, c.nurse?.presentIllness || "")}</div>
+              <div className="font-semibold min-h-[40px] pr-2">{c.menstrual_history}</div>
+              <div className="font-semibold min-h-[40px] pr-2">{c.past_history}</div>
+              <div className="font-semibold min-h-[40px]">{c.weight}</div>
+            </div>
+          </>
+        )}
 
         {/* Doctor's Treatment & Prescription Section */}
         {( (c.dose_medicines && c.dose_medicines.length > 0) || c.prescription || c.medicines || c.tests ) && (
@@ -486,7 +490,7 @@ function CasePaperCard({ c, setBusy }: { c: any; setBusy: (b: boolean) => void }
                 }}
                 className="bg-white relative flex flex-col text-black font-serif border border-slate-200 select-text"
               >
-                <CasePaperContent c={c} />
+                <CasePaperContent c={c} showClinicalHistory={false} />
               </div>
             </div>
           </div>
@@ -504,7 +508,7 @@ function CasePaperCard({ c, setBusy }: { c: any; setBusy: (b: boolean) => void }
                 }}
                 className="bg-white relative flex flex-col text-black font-serif shadow-lg border border-slate-200 rounded-sm"
               >
-                <CasePaperContent c={c} />
+                <CasePaperContent c={c} showClinicalHistory={false} />
               </div>
             </div>
           </div>
@@ -1092,28 +1096,6 @@ function PatientPage() {
                   />
                   <VoiceButton onTranscript={(val) => setForm((f) => ({ ...f, parents_occupation: f.parents_occupation ? f.parents_occupation + " " + val : val }))} />
                 </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Section 2: Clinical Details Notice (Mandatory for Nurse) */}
-          <div className="space-y-3 pt-2 border-t border-slate-200/60 dark:border-white/10">
-            <div className="bg-amber-500/10 dark:bg-amber-500/15 p-4 rounded-2xl border border-amber-500/25 flex items-start gap-3.5">
-              <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-300 grid place-items-center shrink-0 mt-0.5">
-                <ClipboardList className="h-5 w-5" />
-              </div>
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-amber-950 dark:text-amber-200 text-xs">
-                    तक्रारी आणि वैद्यकीय इतिहास (Symptoms & History)
-                  </span>
-                  <Badge variant="outline" className="bg-amber-500/20 text-amber-900 dark:text-amber-200 border-amber-500/40 text-[9px] font-bold">
-                    नर्सद्वारे भरण्यात येईल (Filled by Nurse Only)
-                  </Badge>
-                </div>
-                <p className="text-muted-foreground text-[11px] leading-relaxed">
-                  हा विभाग (लक्षणे, मागील इतिहास, पाळीचा इतिहास व वजन) क्लिनिकमधील <strong>स्टाफ / नर्स (Nurse)</strong> द्वारे तपासणी करून केस पेपरमध्ये भरला जाईल.
-                </p>
               </div>
             </div>
           </div>
